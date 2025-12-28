@@ -12,7 +12,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 
 --- a/include/linux/if_vlan.h
 +++ b/include/linux/if_vlan.h
-@@ -143,6 +143,9 @@ extern struct net_device *__vlan_find_de
+@@ -138,6 +138,9 @@ extern struct net_device *__vlan_find_de
  extern int vlan_for_each(struct net_device *dev,
  			 int (*action)(struct net_device *dev, int vid,
  				       void *arg), void *arg);
@@ -32,9 +32,9 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 +
 +}
 +
- static inline struct net_device *
- __vlan_find_dev_deep_rcu(struct net_device *real_dev,
- 		     __be16 vlan_proto, u16 vlan_id)
+ static inline bool is_vlan_dev(const struct net_device *dev)
+ {
+ 	return false;
 --- a/net/8021q/vlan_core.c
 +++ b/net/8021q/vlan_core.c
 @@ -72,6 +72,26 @@ bool vlan_do_receive(struct sk_buff **sk

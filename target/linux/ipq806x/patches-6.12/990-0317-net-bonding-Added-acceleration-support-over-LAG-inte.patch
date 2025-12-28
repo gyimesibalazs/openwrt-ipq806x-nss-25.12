@@ -40,7 +40,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
 
 --- a/drivers/net/bonding/bond_3ad.c
 +++ b/drivers/net/bonding/bond_3ad.c
-@@ -116,6 +116,38 @@ static void ad_marker_response_received(
+@@ -119,6 +119,38 @@ static void ad_marker_response_received(
  					struct port *port);
  static void ad_update_actor_keys(struct port *port, bool reset);
  
@@ -79,7 +79,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  
  /* ================= api to bonding and kernel code ================== */
  
-@@ -430,7 +462,6 @@ static u16 __ad_timer_to_ticks(u16 timer
+@@ -481,7 +513,6 @@ static u16 __ad_timer_to_ticks(u16 timer
  	return retval;
  }
  
@@ -87,7 +87,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  /* ================= ad_rx_machine helper functions ================== */
  
  /**
-@@ -1073,6 +1104,28 @@ static void ad_mux_machine(struct port *
+@@ -1163,6 +1194,28 @@ static void ad_mux_machine(struct port *
  			ad_disable_collecting_distributing(port,
  							   update_slave_arr);
  			port->ntt = true;
@@ -116,7 +116,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  			break;
  		case AD_MUX_COLLECTING_DISTRIBUTING:
  			port->actor_oper_port_state |= LACP_STATE_COLLECTING;
-@@ -1917,6 +1970,7 @@ static void ad_enable_collecting_distrib
+@@ -2066,6 +2119,7 @@ static void ad_enable_collecting_distrib
  					      bool *update_slave_arr)
  {
  	if (port->aggregator->is_active) {
@@ -124,7 +124,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  		slave_dbg(port->slave->bond->dev, port->slave->dev,
  			  "Enabling port %d (LAG %d)\n",
  			  port->actor_port_number,
-@@ -1924,6 +1978,14 @@ static void ad_enable_collecting_distrib
+@@ -2073,6 +2127,14 @@ static void ad_enable_collecting_distrib
  		__enable_port(port);
  		/* Slave array needs update */
  		*update_slave_arr = true;
@@ -139,7 +139,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  	}
  }
  
-@@ -2683,6 +2745,102 @@ int bond_3ad_get_active_agg_info(struct
+@@ -2832,6 +2894,102 @@ int bond_3ad_get_active_agg_info(struct
  	return ret;
  }
  
@@ -657,7 +657,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  	free_percpu(bond->rr_tx_counter);
  }
  
-@@ -6490,6 +6769,11 @@ int bond_create(struct net *net, const c
+@@ -6491,6 +6770,11 @@ int bond_create(struct net *net, const c
  
  	bond_work_init_all(bond);
  
@@ -671,7 +671,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  	return res;
 --- a/include/net/bond_3ad.h
 +++ b/include/net/bond_3ad.h
-@@ -302,8 +302,13 @@ int bond_3ad_lacpdu_recv(const struct sk
+@@ -304,6 +304,12 @@ int bond_3ad_lacpdu_recv(const struct sk
  			 struct slave *slave);
  int bond_3ad_set_carrier(struct bonding *bond);
  void bond_3ad_update_lacp_rate(struct bonding *bond);
@@ -681,11 +681,9 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
 +				       struct net_device *bond_dev,
 +				       __be16 *layer4hdr);
 +
+ void bond_3ad_update_lacp_active(struct bonding *bond);
  void bond_3ad_update_ad_actor_settings(struct bonding *bond);
  int bond_3ad_stats_fill(struct sk_buff *skb, struct bond_3ad_stats *stats);
- size_t bond_3ad_stats_size(void);
- #endif /* _NET_BOND_3AD_H */
--
 --- a/include/net/bonding.h
 +++ b/include/net/bonding.h
 @@ -90,6 +90,8 @@
@@ -697,7 +695,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  #ifdef CONFIG_NET_POLL_CONTROLLER
  extern atomic_t netpoll_block_tx;
  
-@@ -261,6 +263,7 @@ struct bonding {
+@@ -263,6 +265,7 @@ struct bonding {
  	struct mutex ipsec_lock;
  #endif /* CONFIG_XFRM_OFFLOAD */
  	struct bpf_prog *xdp_prog;
@@ -705,7 +703,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  };
  
  #define bond_slave_get_rcu(dev) \
-@@ -683,6 +686,11 @@ struct bond_vlan_tag *bond_verify_device
+@@ -706,6 +709,11 @@ struct bond_vlan_tag *bond_verify_device
  					      int level);
  int bond_update_slave_arr(struct bonding *bond, struct slave *skipslave);
  void bond_slave_arr_work_rearm(struct bonding *bond, unsigned long delay);
@@ -717,7 +715,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  void bond_work_init_all(struct bonding *bond);
  
  #ifdef CONFIG_PROC_FS
-@@ -787,4 +795,17 @@ static inline netdev_tx_t bond_tx_drop(s
+@@ -810,4 +818,17 @@ static inline netdev_tx_t bond_tx_drop(s
  	return NET_XMIT_DROP;
  }
  

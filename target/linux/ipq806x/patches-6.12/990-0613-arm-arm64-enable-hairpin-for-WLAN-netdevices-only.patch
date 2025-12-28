@@ -22,28 +22,28 @@ Signed-off-by: Karthik T S <quic_kartikts@quicinc.com>
  	vg = nbp_vlan_group_rcu(p);
 -	return (((p->flags & BR_HAIRPIN_MODE) && !is_multicast_ether_addr(eth_hdr(skb)->h_dest))
 -		|| skb->dev != p->dev) &&
--		(br_mst_is_enabled(p->br) || p->state == BR_STATE_FORWARDING) &&
+-		(br_mst_is_enabled(p) || p->state == BR_STATE_FORWARDING) &&
 -		br_allowed_egress(vg, skb) && nbp_switchdev_allowed_egress(p, skb) &&
 -		!br_skb_isolated(p, skb);
 +
 +	if ((skb->dev != p->dev) &&
-+	    br_allowed_egress(vg, skb) && p->state == BR_STATE_FORWARDING &&
-+	    nbp_switchdev_allowed_egress(p, skb) &&
++	    (br_mst_is_enabled(p) || p->state == BR_STATE_FORWARDING) &&
++	    br_allowed_egress(vg, skb) && nbp_switchdev_allowed_egress(p, skb) &&
 +	    !br_skb_isolated(p, skb)) {
 +		return true;
 +	}
 +
 +	if ((skb->dev == p->dev) &&
 +	    (p->flags & BR_HAIRPIN_MODE) &&
-+	    br_allowed_egress(vg, skb) && p->state == BR_STATE_FORWARDING) {
++	    (br_mst_is_enabled(p) || p->state == BR_STATE_FORWARDING) &&
++	    br_allowed_egress(vg, skb) && nbp_switchdev_allowed_egress(p, skb) &&
++	    !br_skb_isolated(p, skb)) {
 +
-+		/* Allow hairpin only on WLAN netdevices.
-+		 * For ethernet interfaces, hairpin not allowed
-+		 * due to issue with switchdevs. */
-+		if ( skb->dev->ieee80211_ptr == NULL) {
++		/* Allow hairpin only on WLAN netdevices for unicast.
++		 * Block multicast and ethernet interfaces. */
++		if (skb->dev->ieee80211_ptr == NULL || is_multicast_ether_addr(eth_hdr(skb)->h_dest)) {
 +			return false;
 +		}
-+
 +		return true;
 +	}
 +
