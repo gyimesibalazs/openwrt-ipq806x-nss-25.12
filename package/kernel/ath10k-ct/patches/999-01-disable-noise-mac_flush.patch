@@ -299,12 +299,12 @@
          if (vif) {
                  arvif = (void *)vif->drv_priv;
                  vid = arvif->vdev_id;
--                ath10k_info(ar, "mac flush vdev %d drop %d queues 0x%x ar->paused: 0x%lx  arvif->paused: 0x%lx\n",
--                            arvif->vdev_id, drop, queues, ar->tx_paused, arvif->tx_paused);
+-                ath10k_dbg(ar, ATH10K_DBG_MAC, "mac flush vdev %d drop %d queues 0x%x ar->paused: 0x%lx  arvif->paused: 0x%lx\n",
+-                           arvif->vdev_id, drop, queues, ar->tx_paused, arvif->tx_paused);
 -        }
 -        else {
--                ath10k_info(ar, "mac flush null vif, drop %d queues 0x%x\n",
--                            drop, queues);
+-                ath10k_dbg(ar, ATH10K_DBG_MAC, "mac flush null vif, drop %d queues 0x%x\n",
+-                           drop, queues);
          }
  
  
