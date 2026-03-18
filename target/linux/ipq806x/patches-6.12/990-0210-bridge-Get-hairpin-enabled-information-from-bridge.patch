@@ -14,12 +14,12 @@ Signed-off-by: Varsha Mishra <varsham@codeaurora.org>
 
 --- a/include/linux/if_bridge.h
 +++ b/include/linux/if_bridge.h
-@@ -85,6 +85,7 @@ extern struct net_bridge_fdb_entry *br_f
+@@ -83,6 +83,7 @@
  						     __u16 vid);
  extern void br_fdb_update_register_notify(struct notifier_block *nb);
  extern void br_fdb_update_unregister_notify(struct notifier_block *nb);
 +extern bool br_is_hairpin_enabled(struct net_device *dev);
- 
+  
  #if IS_ENABLED(CONFIG_BRIDGE) && IS_ENABLED(CONFIG_BRIDGE_IGMP_SNOOPING)
  int br_multicast_list_adjacent(struct net_device *dev,
 --- a/net/bridge/br_if.c
