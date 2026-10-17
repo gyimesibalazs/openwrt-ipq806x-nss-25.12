@@ -1,6 +1,6 @@
 --- a/drivers/soc/qcom/socinfo.c
 +++ b/drivers/soc/qcom/socinfo.c
-@@ -529,11 +529,13 @@ QCOM_OPEN(pmic_die_rev, qcom_show_pmic_d
+@@ -558,11 +558,13 @@ QCOM_OPEN(pmic_die_rev, qcom_show_pmic_d
  QCOM_OPEN(chip_id, qcom_show_chip_id);
  
  #define DEFINE_IMAGE_OPS(type)					\
@@ -17,7 +17,7 @@
  	return 0;						  \
  }								  \
  static int open_image_##type(struct inode *inode, struct file *file)	  \
-@@ -749,7 +751,7 @@ static int qcom_socinfo_probe(struct pla
+@@ -778,7 +780,7 @@ static int qcom_socinfo_probe(struct pla
  	if (!qs)
  		return -ENOMEM;
  
@@ -26,7 +26,7 @@
  	qs->attr.machine = socinfo_machine(&pdev->dev,
  					   le32_to_cpu(info->id));
  	qs->attr.soc_id = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%u",
-@@ -772,6 +774,9 @@ static int qcom_socinfo_probe(struct pla
+@@ -801,6 +803,9 @@ static int qcom_socinfo_probe(struct pla
  	if (IS_ERR(qs->soc_dev))
  		return PTR_ERR(qs->soc_dev);
  

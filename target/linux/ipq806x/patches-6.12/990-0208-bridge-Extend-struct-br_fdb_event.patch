@@ -15,7 +15,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 
 --- a/include/linux/if_bridge.h
 +++ b/include/linux/if_bridge.h
-@@ -243,13 +243,16 @@ extern br_multicast_handle_hook_t __rcu
+@@ -241,13 +241,16 @@ extern br_multicast_handle_hook_t __rcu
  #define BR_FDB_EVENT_DEL     0x02
  
  struct br_fdb_event {
@@ -36,7 +36,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  		const struct net_bridge_port *src,
 --- a/net/bridge/br_fdb.c
 +++ b/net/bridge/br_fdb.c
-@@ -574,7 +574,7 @@ void br_fdb_cleanup(struct work_struct *
+@@ -596,7 +596,7 @@ void br_fdb_cleanup(struct work_struct *
  	unsigned long delay = hold_time(br);
  	unsigned long work_delay = delay;
  	unsigned long now = jiffies;
@@ -45,7 +45,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  
  	/* this part is tricky, in order to avoid blocking learning and
  	 * consequently forwarding, we rely on rcu to delete objects with
-@@ -602,10 +602,11 @@ void br_fdb_cleanup(struct work_struct *
+@@ -624,10 +624,11 @@ void br_fdb_cleanup(struct work_struct *
  		} else {
  			spin_lock_bh(&br->hash_lock);
  			if (!hlist_unhashed(&f->fdb_node)) {
@@ -59,7 +59,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  			}
  			spin_unlock_bh(&br->hash_lock);
  		}
-@@ -902,10 +903,19 @@ static bool __fdb_mark_active(struct net
+@@ -949,10 +950,19 @@ static bool __fdb_mark_active(struct net
  		  test_and_clear_bit(BR_FDB_NOTIFY_INACTIVE, &fdb->flags));
  }
  
@@ -79,7 +79,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  
  	/* some users want to always flood. */
  	if (hold_time(br) == 0)
-@@ -931,6 +941,10 @@ void br_fdb_update(struct net_bridge *br
+@@ -978,6 +988,10 @@ void br_fdb_update(struct net_bridge *br
  			if (unlikely(source != READ_ONCE(fdb->dst) &&
  				     !test_bit(BR_FDB_STICKY, &fdb->flags))) {
  				br_switchdev_fdb_notify(br, fdb, RTM_DELNEIGH);
@@ -90,7 +90,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  				WRITE_ONCE(fdb->dst, source);
  				fdb_modified = true;
  
-@@ -947,7 +961,7 @@ void br_fdb_update(struct net_bridge *br
+@@ -994,7 +1008,7 @@ void br_fdb_update(struct net_bridge *br
  
  				atomic_notifier_call_chain(
  					&br_fdb_update_notifier_list,
@@ -98,4 +98,4 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 +					0, (void *)&fdb_event);
  			}
  
- 			if (unlikely(test_bit(BR_FDB_ADDED_BY_USER, &flags)))
+ 			if (unlikely(test_bit(BR_FDB_ADDED_BY_USER, &flags))) {

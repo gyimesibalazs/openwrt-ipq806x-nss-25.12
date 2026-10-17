@@ -1,6 +1,6 @@
 --- a/arch/arm/boot/dts/qcom/qcom-ipq8064.dtsi
 +++ b/arch/arm/boot/dts/qcom/qcom-ipq8064.dtsi
-@@ -917,12 +917,10 @@
+@@ -896,12 +896,10 @@
  			qcom,vlan-enabled;
  			qcom,wlan-dataplane-offload-enabled;
  			qcom,wlanredirect-enabled;

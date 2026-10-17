@@ -28,7 +28,7 @@ Signed-off-by: Swati Singh <quic_swasing@quicinc.com>
  				       u8 name_assign_type);
 --- a/include/net/ip_tunnels.h
 +++ b/include/net/ip_tunnels.h
-@@ -592,4 +592,7 @@ static inline void ip_tunnel_info_opts_s
+@@ -734,4 +734,7 @@ static inline void ip_tunnel_info_opts_s
  
  #endif /* CONFIG_INET */
  
@@ -38,7 +38,7 @@ Signed-off-by: Swati Singh <quic_swasing@quicinc.com>
  #endif /* __NET_IP_TUNNELS_H */
 --- a/net/ipv4/ip_gre.c
 +++ b/net/ipv4/ip_gre.c
-@@ -463,6 +463,26 @@ drop:
+@@ -470,6 +470,26 @@ drop:
  	return 0;
  }
  
@@ -67,7 +67,7 @@ Signed-off-by: Swati Singh <quic_swasing@quicinc.com>
  		       __be16 proto)
 --- a/net/ipv6/ip6_tunnel.c
 +++ b/net/ipv6/ip6_tunnel.c
-@@ -2424,6 +2424,26 @@ struct net *ip6_tnl_get_link_net(const s
+@@ -2426,6 +2426,26 @@ struct net *ip6_tnl_get_link_net(const s
  }
  EXPORT_SYMBOL(ip6_tnl_get_link_net);
  

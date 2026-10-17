@@ -36,6 +36,6 @@ Signed-off-by: Nitin Shetty <quic_nitinsj@quicinc.com>
 +	       !strcmp(dev->rtnl_link_ops->kind, "ip6gre");
 +}
 +
- static inline int gre_calc_hlen(__be16 o_flags)
+ static inline int gre_calc_hlen(const unsigned long *o_flags)
  {
  	int addend = 4;

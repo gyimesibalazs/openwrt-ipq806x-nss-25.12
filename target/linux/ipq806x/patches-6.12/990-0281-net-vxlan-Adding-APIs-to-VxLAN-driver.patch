@@ -65,8 +65,8 @@ Signed-off-by: Vishnu Vardhan Bantanahal <quic_vishvard@quicinc.com>
 +	atomic_notifier_call_chain(&vxlan_fdb_notifier_list, type, (void *)&vfe);
  	return;
  errout:
- 	if (err < 0)
-@@ -441,6 +460,18 @@ static struct vxlan_fdb *vxlan_find_mac(
+ 	rtnl_set_sk_err(net, RTNLGRP_NEIGH, err);
+@@ -440,6 +459,20 @@ static struct vxlan_fdb *vxlan_find_mac_
  	return f;
  }
  
@@ -77,7 +77,9 @@ Signed-off-by: Vishnu Vardhan Bantanahal <quic_vishvard@quicinc.com>
 +
 +	hash_index = fdb_head_index(vxlan, mac, vni);
 +	spin_lock_bh(&vxlan->hash_lock[hash_index]);
-+	vxlan_find_mac(vxlan, mac, vni);
++	rcu_read_lock();
++	vxlan_find_mac_tx(vxlan, mac, (__force __be32)vni);
++	rcu_read_unlock();
 +	spin_unlock_bh(&vxlan->hash_lock[hash_index]);
 +}
 +EXPORT_SYMBOL(vxlan_fdb_update_mac);
@@ -87,7 +89,7 @@ Signed-off-by: Vishnu Vardhan Bantanahal <quic_vishvard@quicinc.com>
  					      union vxlan_addr *ip, __be16 port,
 --- a/include/net/vxlan.h
 +++ b/include/net/vxlan.h
-@@ -352,6 +352,19 @@ struct vxlan_dev {
+@@ -353,6 +353,19 @@ struct vxlan_dev {
  					 VXLAN_F_VNIFILTER         |    \
  					 VXLAN_F_LOCALBYPASS)
  
@@ -107,7 +109,7 @@ Signed-off-by: Vishnu Vardhan Bantanahal <quic_vishvard@quicinc.com>
  struct net_device *vxlan_dev_create(struct net *net, const char *name,
  				    u8 name_assign_type, struct vxlan_config *conf);
  
-@@ -440,6 +453,22 @@ static inline __be32 vxlan_compute_rco(u
+@@ -441,6 +454,22 @@ static inline __be32 vxlan_compute_rco(u
  	return vni_field;
  }
  

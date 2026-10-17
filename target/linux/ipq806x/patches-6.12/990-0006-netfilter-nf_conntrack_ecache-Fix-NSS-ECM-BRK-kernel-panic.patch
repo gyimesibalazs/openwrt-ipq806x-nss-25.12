@@ -1,6 +1,6 @@
 --- a/net/netfilter/nf_conntrack_ecache.c
 +++ b/net/netfilter/nf_conntrack_ecache.c
-@@ -266,7 +266,6 @@ void nf_conntrack_register_notifier(stru
+@@ -268,7 +268,6 @@ void nf_conntrack_register_notifier(stru
  	mutex_lock(&nf_ct_ecache_mutex);
  	notify = rcu_dereference_protected(net->ct.nf_conntrack_event_cb,
  					   lockdep_is_held(&nf_ct_ecache_mutex));

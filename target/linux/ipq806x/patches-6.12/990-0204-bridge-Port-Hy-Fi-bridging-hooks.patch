@@ -44,7 +44,7 @@ Signed-off-by: Amitesh Anand <quic_amitesh@quicinc.com>
 
 --- a/include/linux/if_bridge.h
 +++ b/include/linux/if_bridge.h
-@@ -75,7 +75,8 @@ int br_ioctl_call(struct net *net, struc
+@@ -73,7 +73,8 @@ int br_ioctl_call(struct net *net, unsig
  
  extern struct net_device *br_port_dev_get(struct net_device *dev,
  					  unsigned char *addr,
@@ -54,7 +54,7 @@ Signed-off-by: Amitesh Anand <quic_amitesh@quicinc.com>
  extern void br_refresh_fdb_entry(struct net_device *dev, const char *addr);
  extern void br_dev_update_stats(struct net_device *dev,
  				struct rtnl_link_stats64 *nlstats);
-@@ -227,7 +228,9 @@ static inline clock_t br_get_ageing_time
+@@ -225,7 +226,9 @@ static inline clock_t br_get_ageing_time
  #endif
  
  typedef struct net_bridge_port *br_port_dev_get_hook_t(struct net_device *dev,
@@ -65,7 +65,7 @@ Signed-off-by: Amitesh Anand <quic_amitesh@quicinc.com>
  extern br_port_dev_get_hook_t __rcu *br_port_dev_get_hook;
  
  typedef void (br_notify_hook_t)(int group, int event, const void *ptr);
-@@ -247,4 +250,12 @@ struct br_fdb_event {
+@@ -245,4 +248,12 @@ struct br_fdb_event {
  
  extern void br_fdb_register_notify(struct notifier_block *nb);
  extern void br_fdb_unregister_notify(struct notifier_block *nb);
@@ -80,7 +80,7 @@ Signed-off-by: Amitesh Anand <quic_amitesh@quicinc.com>
  #endif
 --- a/net/bridge/br.c
 +++ b/net/bridge/br.c
-@@ -472,6 +472,10 @@ static void __exit br_deinit(void)
+@@ -479,6 +479,10 @@ static void __exit br_deinit(void)
  	br_fdb_fini();
  }
  
@@ -93,7 +93,7 @@ Signed-off-by: Amitesh Anand <quic_amitesh@quicinc.com>
  MODULE_LICENSE("GPL");
 --- a/net/bridge/br_fdb.c
 +++ b/net/bridge/br_fdb.c
-@@ -237,6 +237,8 @@ static void fdb_notify(struct net_bridge
+@@ -234,6 +234,8 @@ static void fdb_notify(struct net_bridge
  		kfree_skb(skb);
  		goto errout;
  	}
@@ -104,7 +104,7 @@ Signed-off-by: Amitesh Anand <quic_amitesh@quicinc.com>
  errout:
 --- a/net/bridge/br_if.c
 +++ b/net/bridge/br_if.c
-@@ -794,7 +794,8 @@ EXPORT_SYMBOL_GPL(br_port_flag_is_set);
+@@ -795,7 +795,8 @@ EXPORT_SYMBOL_GPL(br_port_flag_is_set);
   * associated port.
   */
  struct net_device *br_port_dev_get(struct net_device *dev, unsigned char *addr,
@@ -114,7 +114,7 @@ Signed-off-by: Amitesh Anand <quic_amitesh@quicinc.com>
  {
  	struct net_bridge_fdb_entry *fdbe;
  	struct net_bridge *br;
-@@ -813,7 +814,8 @@ struct net_device *br_port_dev_get(struc
+@@ -814,7 +815,8 @@ struct net_device *br_port_dev_get(struc
  		port_dev_get_hook = rcu_dereference(br_port_dev_get_hook);
  		if (port_dev_get_hook) {
  			struct net_bridge_port *pdst =
@@ -146,7 +146,7 @@ Signed-off-by: Amitesh Anand <quic_amitesh@quicinc.com>
  	u16 vid = 0;
  	u8 state;
  
-@@ -207,7 +213,13 @@ int br_handle_frame_finish(struct net *n
+@@ -206,7 +212,13 @@ int br_handle_frame_finish(struct net *n
  		}
  		break;
  	case BR_PKT_UNICAST:
@@ -161,8 +161,8 @@ Signed-off-by: Amitesh Anand <quic_amitesh@quicinc.com>
  		break;
  	default:
  		break;
-@@ -223,12 +235,18 @@ int br_handle_frame_finish(struct net *n
- 			dst->used = now;
+@@ -222,12 +234,18 @@ int br_handle_frame_finish(struct net *n
+ 			WRITE_ONCE(dst->used, now);
  		br_forward(dst->dst, skb, local_rcv, false);
  	} else {
 +		if (pdst) {
@@ -201,7 +201,7 @@ Signed-off-by: Amitesh Anand <quic_amitesh@quicinc.com>
  
  #define BR_HASH_BITS 8
  #define BR_HASH_SIZE (1 << BR_HASH_BITS)
-@@ -2297,4 +2298,12 @@ bool br_is_neigh_suppress_enabled(const
+@@ -2330,4 +2331,12 @@ bool br_is_neigh_suppress_enabled(const
  #define __br_get(__hook, __default, __args ...) \
  		(__hook ? (__hook(__args)) : (__default))
  

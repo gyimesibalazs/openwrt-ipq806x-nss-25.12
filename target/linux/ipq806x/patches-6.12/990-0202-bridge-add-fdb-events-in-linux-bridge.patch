@@ -17,7 +17,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 
 --- a/include/linux/if_bridge.h
 +++ b/include/linux/if_bridge.h
-@@ -236,4 +236,15 @@ typedef int (br_multicast_handle_hook_t)
+@@ -234,4 +234,15 @@ typedef int (br_multicast_handle_hook_t)
  		struct sk_buff *skb);
  extern br_multicast_handle_hook_t __rcu *br_multicast_handle_hook;
  
@@ -55,8 +55,8 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 +
  int __init br_fdb_init(void)
  {
- 	br_fdb_cache = kmem_cache_create("bridge_fdb_cache",
-@@ -195,6 +209,23 @@ static void fdb_notify(struct net_bridge
+ 	br_fdb_cache = KMEM_CACHE(net_bridge_fdb_entry, SLAB_HWCACHE_ALIGN);
+@@ -192,6 +206,23 @@ static void fdb_notify(struct net_bridge
  	if (swdev_notify)
  		br_switchdev_fdb_notify(br, fdb, type);
  

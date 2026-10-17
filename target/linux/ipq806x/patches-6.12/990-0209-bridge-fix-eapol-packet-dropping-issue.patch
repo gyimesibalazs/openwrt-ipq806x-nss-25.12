@@ -14,7 +14,7 @@ Signed-off-by: Zhu Ken <guigenz@codeaurora.org>
 
 --- a/net/bridge/br_input.c
 +++ b/net/bridge/br_input.c
-@@ -451,13 +451,15 @@ forward:
+@@ -450,13 +450,15 @@ forward:
  
  	switch (p->state) {
  	case BR_STATE_DISABLED:

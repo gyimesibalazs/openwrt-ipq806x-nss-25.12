@@ -15,7 +15,7 @@ Signed-off-by: Ken Zhu <quic_guigenz@quicinc.com>
 
 --- a/net/bridge/br_netlink.c
 +++ b/net/bridge/br_netlink.c
-@@ -1322,6 +1322,7 @@ static int br_changelink(struct net_devi
+@@ -1326,6 +1326,7 @@ static int br_changelink(struct net_devi
  		br_stp_set_bridge_priority(br, priority);
  	}
  
@@ -23,7 +23,7 @@ Signed-off-by: Ken Zhu <quic_guigenz@quicinc.com>
  	if (data[IFLA_BR_VLAN_FILTERING]) {
  		u8 vlan_filter = nla_get_u8(data[IFLA_BR_VLAN_FILTERING]);
  
-@@ -1330,7 +1331,6 @@ static int br_changelink(struct net_devi
+@@ -1334,7 +1335,6 @@ static int br_changelink(struct net_devi
  			return err;
  	}
  

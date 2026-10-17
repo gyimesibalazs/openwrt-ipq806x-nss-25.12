@@ -51,7 +51,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  		       dev_net(indev), NULL, skb, indev, NULL,
  		       br_netif_receive_skb);
  }
-@@ -405,7 +405,7 @@ static rx_handler_result_t br_handle_fra
+@@ -404,7 +404,7 @@ static rx_handler_result_t br_handle_fra
  		 *   - returns = 0 (stolen/nf_queue)
  		 * Thus return 1 from the okfn() to signal the skb is ok to pass
  		 */
@@ -60,7 +60,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  			    dev_net(skb->dev), NULL, skb, skb->dev, NULL,
  			    br_handle_local_finish) == 1) {
  			return RX_HANDLER_PASS;
-@@ -426,7 +426,7 @@ forward:
+@@ -425,7 +425,7 @@ forward:
  		if (ether_addr_equal(p->br->dev->dev_addr, dest))
  			skb->pkt_type = PACKET_HOST;
  
@@ -71,7 +71,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  			return RX_HANDLER_PASS;
 --- a/net/bridge/br_multicast.c
 +++ b/net/bridge/br_multicast.c
-@@ -1805,7 +1805,7 @@ again_under_lmqt:
+@@ -1804,7 +1804,7 @@ again_under_lmqt:
  		skb->dev = pmctx->port->dev;
  		br_multicast_count(brmctx->br, pmctx->port, skb, igmp_type,
  				   BR_MCAST_DIR_TX);
@@ -82,7 +82,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  
 --- a/net/bridge/br_netfilter_hooks.c
 +++ b/net/bridge/br_netfilter_hooks.c
-@@ -61,6 +61,7 @@ struct brnf_net {
+@@ -62,6 +62,7 @@ struct brnf_net {
  	int call_iptables;
  	int call_ip6tables;
  	int call_arptables;
@@ -90,7 +90,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  
  	/* default value is 0 */
  	int filter_vlan_tagged;
-@@ -77,6 +78,14 @@ struct brnf_net {
+@@ -78,6 +79,14 @@ struct brnf_net {
  #define IS_ARP(skb) \
  	(!skb_vlan_tag_present(skb) && skb->protocol == htons(ETH_P_ARP))
  
@@ -105,7 +105,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  static inline __be16 vlan_proto(const struct sk_buff *skb)
  {
  	if (skb_vlan_tag_present(skb))
-@@ -1240,6 +1249,12 @@ static struct ctl_table brnf_table[] = {
+@@ -1247,6 +1256,12 @@ static struct ctl_table brnf_table[] = {
  		.mode		= 0644,
  		.proc_handler	= brnf_sysctl_call_tables,
  	},
@@ -115,10 +115,10 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 +		.mode           = 0644,
 +		.proc_handler   = brnf_sysctl_call_tables,
 +	},
- 	{ }
  };
  
-@@ -1248,6 +1263,7 @@ static inline void br_netfilter_sysctl_d
+ static inline void br_netfilter_sysctl_default(struct brnf_net *brnf)
+@@ -1254,6 +1269,7 @@ static inline void br_netfilter_sysctl_d
  	brnf->call_iptables = 1;
  	brnf->call_ip6tables = 1;
  	brnf->call_arptables = 1;
@@ -126,7 +126,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  	brnf->filter_vlan_tagged = 0;
  	brnf->filter_pppoe_tagged = 0;
  	brnf->pass_vlan_indev = 0;
-@@ -1271,6 +1287,7 @@ static int br_netfilter_sysctl_init_net(
+@@ -1277,6 +1293,7 @@ static int br_netfilter_sysctl_init_net(
  	table[3].data = &brnet->filter_vlan_tagged;
  	table[4].data = &brnet->filter_pppoe_tagged;
  	table[5].data = &brnet->pass_vlan_indev;
@@ -144,7 +144,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  
  #define BR_HASH_BITS 8
  #define BR_HASH_SIZE (1 << BR_HASH_BITS)
-@@ -1942,12 +1943,25 @@ extern const struct nf_br_ops __rcu *nf_
+@@ -1975,12 +1976,25 @@ extern const struct nf_br_ops __rcu *nf_
  int br_nf_core_init(void);
  void br_nf_core_fini(void);
  void br_netfilter_rtable_init(struct net_bridge *);

@@ -16,7 +16,7 @@ Signed-off-by: Shyam Sunder <ssunde@codeaurora.org>
 
 --- a/net/sched/sch_generic.c
 +++ b/net/sched/sch_generic.c
-@@ -1495,6 +1495,7 @@ void dev_shutdown(struct net_device *dev
+@@ -1478,6 +1478,7 @@ void dev_shutdown(struct net_device *dev
  
  	WARN_ON(timer_pending(&dev->watchdog_timer));
  }

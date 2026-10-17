@@ -32,7 +32,7 @@ upstream source is reprogrammed to support this.
  	struct clk_core		*new_parent;
  	struct clk_core		*new_child;
  	unsigned long		flags;
-@@ -2240,7 +2243,8 @@ out:
+@@ -2259,7 +2262,8 @@ out:
  static void clk_calc_subtree(struct clk_core *core, unsigned long new_rate,
  			     struct clk_core *new_parent, u8 p_index)
  {
@@ -42,7 +42,7 @@ upstream source is reprogrammed to support this.
  
  	core->new_rate = new_rate;
  	core->new_parent = new_parent;
-@@ -2250,6 +2254,18 @@ static void clk_calc_subtree(struct clk_
+@@ -2269,6 +2273,18 @@ static void clk_calc_subtree(struct clk_
  	if (new_parent && new_parent != core->parent)
  		new_parent->new_child = core;
  
@@ -61,7 +61,7 @@ upstream source is reprogrammed to support this.
  	hlist_for_each_entry(child, &core->children, child_node) {
  		child->new_rate = clk_recalc(child, new_rate);
  		clk_calc_subtree(child, child->new_rate, NULL, 0);
-@@ -2351,14 +2367,43 @@ static struct clk_core *clk_propagate_ra
+@@ -2370,14 +2386,43 @@ static struct clk_core *clk_propagate_ra
  						  unsigned long event)
  {
  	struct clk_core *child, *tmp_clk, *fail_clk = NULL;
@@ -108,7 +108,7 @@ upstream source is reprogrammed to support this.
  			fail_clk = core;
  	}
  
-@@ -2413,7 +2458,8 @@ static void clk_change_rate(struct clk_c
+@@ -2432,7 +2477,8 @@ static void clk_change_rate(struct clk_c
  		clk_core_enable_lock(core);
  	}
  
@@ -118,7 +118,7 @@ upstream source is reprogrammed to support this.
  		old_parent = __clk_set_parent_before(core, core->new_parent);
  		trace_clk_set_parent(core, core->new_parent);
  
-@@ -2450,9 +2496,6 @@ static void clk_change_rate(struct clk_c
+@@ -2469,9 +2515,6 @@ static void clk_change_rate(struct clk_c
  	if (core->flags & CLK_OPS_PARENT_ENABLE)
  		clk_core_disable_unprepare(parent);
  
@@ -128,7 +128,7 @@ upstream source is reprogrammed to support this.
  	if (core->flags & CLK_RECALC_NEW_RATES)
  		(void)clk_calc_new_rates(core, core->new_rate);
  
-@@ -2547,6 +2590,8 @@ static int clk_core_set_rate_nolock(stru
+@@ -2566,6 +2609,8 @@ static int clk_core_set_rate_nolock(stru
  	clk_change_rate(top);
  
  	core->req_rate = req_rate;

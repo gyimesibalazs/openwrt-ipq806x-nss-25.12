@@ -14,7 +14,7 @@ Signed-off-by: Ken Zhu <quic_guigenz@quicinc.com>
 
 --- a/net/bridge/br_input.c
 +++ b/net/bridge/br_input.c
-@@ -461,7 +461,7 @@ forward:
+@@ -460,7 +460,7 @@ forward:
  				return RX_HANDLER_PASS;
  			}
  		}

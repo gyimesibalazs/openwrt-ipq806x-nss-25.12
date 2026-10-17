@@ -87,7 +87,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  #endif
 --- a/arch/arm/include/asm/glue-cache.h
 +++ b/arch/arm/include/asm/glue-cache.h
-@@ -156,6 +156,8 @@ static inline void nop_dma_unmap_area(co
+@@ -146,6 +146,8 @@
  #define __cpuc_flush_dcache_area	__glue(_CACHE,_flush_kern_dcache_area)
  
  #define dmac_flush_range		__glue(_CACHE,_dma_flush_range)
@@ -98,53 +98,41 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  #endif
 --- a/arch/arm/mm/cache-v7.S
 +++ b/arch/arm/mm/cache-v7.S
-@@ -361,7 +361,7 @@ ENDPROC(v7_flush_kern_dcache_area)
+@@ -364,7 +364,7 @@ SYM_FUNC_END(v7_flush_kern_dcache_area)
   *	- start   - virtual start address of region
   *	- end     - virtual end address of region
   */
 -v7_dma_inv_range:
-+ENTRY(v7_dma_inv_range)
++SYM_TYPED_FUNC_START(v7_dma_inv_range)
  	dcache_line_size r2, r3
  	sub	r3, r2, #1
  	tst	r0, r3
-@@ -391,7 +391,7 @@ ENDPROC(v7_dma_inv_range)
+@@ -387,14 +387,14 @@ v7_dma_inv_range:
+ 	blo	1b
+ 	dsb	st
+ 	ret	lr
+-ENDPROC(v7_dma_inv_range)
++SYM_FUNC_END(v7_dma_inv_range)
+ 
+ /*
+  *	v7_dma_clean_range(start,end)
   *	- start   - virtual start address of region
   *	- end     - virtual end address of region
   */
 -v7_dma_clean_range:
-+ENTRY(v7_dma_clean_range)
++SYM_TYPED_FUNC_START(v7_dma_clean_range)
  	dcache_line_size r2, r3
  	sub	r3, r2, #1
  	bic	r0, r0, r3
-@@ -477,6 +477,8 @@ ENDPROC(v7_dma_unmap_area)
+@@ -409,7 +409,7 @@ v7_dma_clean_range:
+ 	blo	1b
+ 	dsb	st
+ 	ret	lr
+-ENDPROC(v7_dma_clean_range)
++SYM_FUNC_END(v7_dma_clean_range)
  
- 	globl_equ	b15_dma_map_area,		v7_dma_map_area
- 	globl_equ	b15_dma_unmap_area,		v7_dma_unmap_area
-+	globl_equ	b15_dma_inv_range,		v7_dma_inv_range
-+	globl_equ	b15_dma_clean_range,		v7_dma_clean_range
- 	globl_equ	b15_dma_flush_range,		v7_dma_flush_range
- 
- 	define_cache_functions b15
---- a/arch/arm/mm/proc-macros.S
-+++ b/arch/arm/mm/proc-macros.S
-@@ -326,7 +326,7 @@ ENTRY(\name\()_processor_functions)
- ENTRY(\name\()_cache_fns)
- 	.long	\name\()_flush_icache_all
- 	.long	\name\()_flush_kern_cache_all
--	.long   \name\()_flush_kern_cache_louis
-+	.long	\name\()_flush_kern_cache_louis
- 	.long	\name\()_flush_user_cache_all
- 	.long	\name\()_flush_user_cache_range
- 	.long	\name\()_coherent_kern_range
-@@ -334,6 +334,8 @@ ENTRY(\name\()_cache_fns)
- 	.long	\name\()_flush_kern_dcache_area
- 	.long	\name\()_dma_map_area
- 	.long	\name\()_dma_unmap_area
-+	.long	\name\()_dma_inv_range
-+	.long	\name\()_dma_clean_range
- 	.long	\name\()_dma_flush_range
- 	.size	\name\()_cache_fns, . - \name\()_cache_fns
- .endm
+ /*
+  *	v7_dma_flush_range(start,end)
 --- a/arch/arm/mm/proc-syms.c
 +++ b/arch/arm/mm/proc-syms.c
 @@ -27,6 +27,9 @@ EXPORT_SYMBOL(__cpuc_flush_user_all);
@@ -156,4 +144,33 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
 +EXPORT_SYMBOL(dmac_flush_range);
  #else
  EXPORT_SYMBOL(cpu_cache);
+ #endif
+--- a/arch/arm/mm/cache.c
++++ b/arch/arm/mm/cache.c
+@@ -156,6 +156,8 @@ int v7_coherent_user_range(unsigned long
+ void v7_flush_kern_dcache_area(void *, size_t);
+ void v7_dma_map_area(const void *, size_t, int);
+ void v7_dma_unmap_area(const void *, size_t, int);
++void v7_dma_inv_range(const void *, const void *);
++void v7_dma_clean_range(const void *, const void *);
+ void v7_dma_flush_range(const void *, const void *);
+ 
+ struct cpu_cache_fns v7_cache_fns __initconst = {
+@@ -169,6 +171,8 @@ struct cpu_cache_fns v7_cache_fns __init
+ 	.flush_kern_dcache_area = v7_flush_kern_dcache_area,
+ 	.dma_map_area = v7_dma_map_area,
+ 	.dma_unmap_area = v7_dma_unmap_area,
++	.dma_inv_range = v7_dma_inv_range,
++	.dma_clean_range = v7_dma_clean_range,
+ 	.dma_flush_range = v7_dma_flush_range,
+ };
+ 
+@@ -190,6 +194,8 @@ struct cpu_cache_fns b15_cache_fns __ini
+ 	.flush_kern_dcache_area = v7_flush_kern_dcache_area,
+ 	.dma_map_area = v7_dma_map_area,
+ 	.dma_unmap_area = v7_dma_unmap_area,
++	.dma_inv_range = v7_dma_inv_range,
++	.dma_clean_range = v7_dma_clean_range,
+ 	.dma_flush_range = v7_dma_flush_range,
+ };
  #endif

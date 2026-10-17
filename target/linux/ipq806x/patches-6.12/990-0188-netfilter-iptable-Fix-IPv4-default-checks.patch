@@ -55,7 +55,7 @@ Signed-off-by: Ram Chandra Jangir <rjangir@codeaurora.org>
  
  	if (!xt_percpu_counter_alloc(alloc_state, &e->counters))
  		return -ENOMEM;
-@@ -1382,8 +1406,10 @@ check_compat_entry_size_and_hooks(struct
+@@ -1378,8 +1402,10 @@ check_compat_entry_size_and_hooks(struct
  			     sizeof(struct compat_xt_entry_target))
  		return -EINVAL;
  

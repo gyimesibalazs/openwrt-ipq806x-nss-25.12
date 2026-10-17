@@ -117,7 +117,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  	depends on NETFILTER_ADVANCED
 --- a/net/netfilter/nf_conntrack_core.c
 +++ b/net/netfilter/nf_conntrack_core.c
-@@ -2810,6 +2810,9 @@ int nf_conntrack_init_net(struct net *ne
+@@ -2773,6 +2773,9 @@ int nf_conntrack_init_net(struct net *ne
  	nf_conntrack_ecache_pernet_init(net);
  	nf_conntrack_proto_pernet_init(net);
  
@@ -212,7 +212,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  EXPORT_SYMBOL_GPL(nf_ct_deliver_cached_events);
  
  void nf_ct_expect_event_report(enum ip_conntrack_expect_events event,
-@@ -258,6 +310,12 @@ out_unlock:
+@@ -260,6 +312,12 @@ out_unlock:
  	rcu_read_unlock();
  }
  
@@ -225,7 +225,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  void nf_conntrack_register_notifier(struct net *net,
  				    const struct nf_ct_event_notifier *new)
  {
-@@ -269,8 +327,16 @@ void nf_conntrack_register_notifier(stru
+@@ -271,8 +329,16 @@ void nf_conntrack_register_notifier(stru
  	rcu_assign_pointer(net->ct.nf_conntrack_event_cb, new);
  	mutex_unlock(&nf_ct_ecache_mutex);
  }
@@ -242,7 +242,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  void nf_conntrack_unregister_notifier(struct net *net)
  {
  	mutex_lock(&nf_ct_ecache_mutex);
-@@ -278,6 +344,7 @@ void nf_conntrack_unregister_notifier(st
+@@ -280,6 +346,7 @@ void nf_conntrack_unregister_notifier(st
  	mutex_unlock(&nf_ct_ecache_mutex);
  	/* synchronize_rcu() is called after netns pre_exit */
  }
@@ -262,7 +262,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  #include <linux/slab.h>
  #include <linux/siphash.h>
  
-@@ -719,18 +722,26 @@ static size_t ctnetlink_nlmsg_size(const
+@@ -720,18 +723,26 @@ static size_t ctnetlink_nlmsg_size(const
  	       ;
  }
  
@@ -290,7 +290,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  
  	if (events & (1 << IPCT_DESTROY)) {
  		type = IPCTNL_MSG_CT_DELETE;
-@@ -3071,6 +3082,7 @@ nla_put_failure:
+@@ -3077,6 +3088,7 @@ nla_put_failure:
  }
  
  #ifdef CONFIG_NF_CONNTRACK_EVENTS
@@ -298,7 +298,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  static int
  ctnetlink_expect_event(unsigned int events, const struct nf_exp_event *item)
  {
-@@ -3120,7 +3132,7 @@
+@@ -3126,7 +3138,7 @@ errout:
  	return 0;
  }
  #endif
@@ -307,7 +307,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  static unsigned long ctnetlink_exp_id(const struct nf_conntrack_expect *exp)
  {
  	unsigned long id = (unsigned long)exp;
-@@ -3732,11 +3744,17 @@ static int ctnetlink_stat_exp_cpu(struct
+@@ -3748,11 +3760,17 @@ static int ctnetlink_stat_exp_cpu(struct
  }
  
  #ifdef CONFIG_NF_CONNTRACK_EVENTS
@@ -325,7 +325,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  
  static const struct nfnl_callback ctnl_cb[IPCTNL_MSG_MAX] = {
  	[IPCTNL_MSG_CT_NEW]	= {
-@@ -3835,8 +3853,12 @@ static int __net_init ctnetlink_net_init
+@@ -3851,8 +3869,12 @@ static int __net_init ctnetlink_net_init
  static void ctnetlink_net_pre_exit(struct net *net)
  {
  #ifdef CONFIG_NF_CONNTRACK_EVENTS

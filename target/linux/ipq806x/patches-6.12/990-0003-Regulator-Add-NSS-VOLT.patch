@@ -11,7 +11,7 @@ Signed-off-by: Robert Marko <robert.marko@sartura.hr>
 
 --- a/drivers/regulator/Kconfig
 +++ b/drivers/regulator/Kconfig
-@@ -1663,4 +1663,11 @@ config REGULATOR_QCOM_LABIBB
+@@ -1720,4 +1720,11 @@ config REGULATOR_QCOM_LABIBB
  	  boost regulator and IBB can be used as a negative boost regulator
  	  for LCD display panel.
  
@@ -25,7 +25,7 @@ Signed-off-by: Robert Marko <robert.marko@sartura.hr>
  endif
 --- a/drivers/regulator/Makefile
 +++ b/drivers/regulator/Makefile
-@@ -195,5 +195,6 @@ obj-$(CONFIG_REGULATOR_WM831X) += wm831x
+@@ -201,5 +201,6 @@ obj-$(CONFIG_REGULATOR_WM831X) += wm831x
  obj-$(CONFIG_REGULATOR_WM8350) += wm8350-regulator.o
  obj-$(CONFIG_REGULATOR_WM8400) += wm8400-regulator.o
  obj-$(CONFIG_REGULATOR_WM8994) += wm8994-regulator.o

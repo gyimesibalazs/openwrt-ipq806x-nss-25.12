@@ -18,7 +18,7 @@ Change-Id: Ibb7f3f5a0e73cda140adee2c1640af03c698f6e6
 
 --- a/drivers/net/macvlan.c
 +++ b/drivers/net/macvlan.c
-@@ -960,6 +960,32 @@ static void macvlan_uninit(struct net_de
+@@ -969,6 +969,32 @@ static void macvlan_uninit(struct net_de
  		macvlan_port_destroy(port->dev);
  }
  
@@ -51,7 +51,7 @@ Change-Id: Ibb7f3f5a0e73cda140adee2c1640af03c698f6e6
  static void macvlan_dev_get_stats64(struct net_device *dev,
  				    struct rtnl_link_stats64 *stats)
  {
-@@ -1506,6 +1532,7 @@ int macvlan_common_newlink(struct net *s
+@@ -1504,6 +1530,7 @@ int macvlan_common_newlink(struct net *s
  	vlan->dev      = dev;
  	vlan->port     = port;
  	vlan->set_features = MACVLAN_FEATURES;

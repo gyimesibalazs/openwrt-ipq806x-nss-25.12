@@ -18,7 +18,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 
 --- a/net/bridge/br_netfilter_hooks.c
 +++ b/net/bridge/br_netfilter_hooks.c
-@@ -62,6 +62,7 @@ struct brnf_net {
+@@ -63,6 +63,7 @@ struct brnf_net {
  	int call_ip6tables;
  	int call_arptables;
  	int call_ebtables;
@@ -26,7 +26,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  
  	/* default value is 0 */
  	int filter_vlan_tagged;
-@@ -83,7 +84,7 @@ bool br_netfilter_run_hooks(struct net *
+@@ -84,7 +85,7 @@ bool br_netfilter_run_hooks(struct net *
  	struct brnf_net *brnf = net_generic(net, brnf_net_id);
  
  	return brnf->call_iptables | brnf->call_ip6tables | brnf->call_arptables |
@@ -35,7 +35,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  }
  
  static inline __be16 vlan_proto(const struct sk_buff *skb)
-@@ -1255,6 +1256,12 @@ static struct ctl_table brnf_table[] = {
+@@ -1262,6 +1263,12 @@ static struct ctl_table brnf_table[] = {
  		.mode           = 0644,
  		.proc_handler   = brnf_sysctl_call_tables,
  	},
@@ -45,10 +45,10 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 +		.mode		= 0644,
 +		.proc_handler	= brnf_sysctl_call_tables,
 +	},
- 	{ }
  };
  
-@@ -1264,6 +1271,7 @@ static inline void br_netfilter_sysctl_d
+ static inline void br_netfilter_sysctl_default(struct brnf_net *brnf)
+@@ -1270,6 +1277,7 @@ static inline void br_netfilter_sysctl_d
  	brnf->call_ip6tables = 1;
  	brnf->call_arptables = 1;
  	brnf->call_ebtables = 1;
@@ -56,7 +56,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  	brnf->filter_vlan_tagged = 0;
  	brnf->filter_pppoe_tagged = 0;
  	brnf->pass_vlan_indev = 0;
-@@ -1288,6 +1296,7 @@ static int br_netfilter_sysctl_init_net(
+@@ -1294,6 +1302,7 @@ static int br_netfilter_sysctl_init_net(
  	table[4].data = &brnet->filter_pppoe_tagged;
  	table[5].data = &brnet->pass_vlan_indev;
  	table[6].data = &brnet->call_ebtables;

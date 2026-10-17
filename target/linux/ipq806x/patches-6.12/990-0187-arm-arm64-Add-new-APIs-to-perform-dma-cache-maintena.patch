@@ -56,7 +56,7 @@ Signed-off-by: Tushar Ganatra <quic_tganatra@quicinc.com>
  
 --- a/arch/arm/include/asm/glue-cache.h
 +++ b/arch/arm/include/asm/glue-cache.h
-@@ -156,8 +156,11 @@ static inline void nop_dma_unmap_area(co
+@@ -146,8 +146,11 @@
  #define __cpuc_flush_dcache_area	__glue(_CACHE,_flush_kern_dcache_area)
  
  #define dmac_flush_range		__glue(_CACHE,_dma_flush_range)
@@ -70,8 +70,8 @@ Signed-off-by: Tushar Ganatra <quic_tganatra@quicinc.com>
  #endif
 --- a/arch/arm/mm/cache-v7.S
 +++ b/arch/arm/mm/cache-v7.S
-@@ -387,6 +387,42 @@ ENTRY(v7_dma_inv_range)
- ENDPROC(v7_dma_inv_range)
+@@ -390,6 +390,42 @@ SYM_TYPED_FUNC_START(v7_dma_inv_range)
+ SYM_FUNC_END(v7_dma_inv_range)
  
  /*
 + * v7_dma_inv_range_no_dsb(start,end)
@@ -85,7 +85,7 @@ Signed-off-by: Tushar Ganatra <quic_tganatra@quicinc.com>
 + *	- start   - virtual start address of region
 + *	- end     - virtual end address of region
 + */
-+ENTRY(v7_dma_inv_range_no_dsb)
++SYM_TYPED_FUNC_START(v7_dma_inv_range_no_dsb)
 +	dcache_line_size r2, r3
 +	sub	r3, r2, #1
 +	tst	r0, r3
@@ -107,14 +107,14 @@ Signed-off-by: Tushar Ganatra <quic_tganatra@quicinc.com>
 +	cmplo	r0, r1
 +	blo	1b
 +	ret	lr
-+ENDPROC(v7_dma_inv_range_no_dsb)
++SYM_FUNC_END(v7_dma_inv_range_no_dsb)
 +
 +/*
   *	v7_dma_clean_range(start,end)
   *	- start   - virtual start address of region
   *	- end     - virtual end address of region
-@@ -409,12 +445,16 @@ ENTRY(v7_dma_clean_range)
- ENDPROC(v7_dma_clean_range)
+@@ -412,11 +448,15 @@ SYM_TYPED_FUNC_START(v7_dma_clean_range)
+ SYM_FUNC_END(v7_dma_clean_range)
  
  /*
 - *	v7_dma_flush_range(start,end)
@@ -126,14 +126,12 @@ Signed-off-by: Tushar Ganatra <quic_tganatra@quicinc.com>
   *	- start   - virtual start address of region
   *	- end     - virtual end address of region
   */
--ENTRY(v7_dma_flush_range)
--	dcache_line_size r2, r3
-+ENTRY(v7_dma_clean_range_no_dsb)
-+	dcache_line_size	r2, r3
+-SYM_TYPED_FUNC_START(v7_dma_flush_range)
++SYM_TYPED_FUNC_START(v7_dma_clean_range_no_dsb)
+ 	dcache_line_size r2, r3
  	sub	r3, r2, #1
  	bic	r0, r0, r3
- #ifdef CONFIG_ARM_ERRATA_764369
-@@ -422,6 +462,27 @@ ENTRY(v7_dma_flush_range)
+@@ -425,6 +465,27 @@ SYM_TYPED_FUNC_START(v7_dma_flush_range)
  	ALT_UP(W(nop))
  #endif
  1:
@@ -142,14 +140,14 @@ Signed-off-by: Tushar Ganatra <quic_tganatra@quicinc.com>
 +	cmp	r0, r1
 +	blo	1b
 +	ret	lr
-+ENDPROC(v7_dma_clean_range_no_dsb)
++SYM_FUNC_END(v7_dma_clean_range_no_dsb)
 +
 +/*
 + *  v7_dma_flush_range(start,end)
 + *	- start   - virtual start address of region
 + *	- end     - virtual end address of region
 + */
-+ENTRY(v7_dma_flush_range)
++SYM_TYPED_FUNC_START(v7_dma_flush_range)
 +	dcache_line_size	r2, r3
 +	sub	r3, r2, #1
 +	bic	r0, r0, r3
@@ -161,8 +159,8 @@ Signed-off-by: Tushar Ganatra <quic_tganatra@quicinc.com>
  	mcr	p15, 0, r0, c7, c14, 1		@ clean & invalidate D / U line
  	add	r0, r0, r2
  	cmp	r0, r1
-@@ -431,10 +492,35 @@ ENTRY(v7_dma_flush_range)
- ENDPROC(v7_dma_flush_range)
+@@ -434,10 +495,35 @@ SYM_TYPED_FUNC_START(v7_dma_flush_range)
+ SYM_FUNC_END(v7_dma_flush_range)
  
  /*
 + *  v7_dma_flush_range_no_dsb(start,end)
@@ -173,7 +171,7 @@ Signed-off-by: Tushar Ganatra <quic_tganatra@quicinc.com>
 + *	- start   - virtual start address of region
 + *	- end     - virtual end address of region
 + */
-+ENTRY(v7_dma_flush_range_no_dsb)
++SYM_TYPED_FUNC_START(v7_dma_flush_range_no_dsb)
 +	dcache_line_size	r2, r3
 +	sub	r3, r2, #1
 +	bic	r0, r0, r3
@@ -187,7 +185,7 @@ Signed-off-by: Tushar Ganatra <quic_tganatra@quicinc.com>
 +	cmp	r0, r1
 +	blo	1b
 +	ret	lr
-+ENDPROC(v7_dma_flush_range_no_dsb)
++SYM_FUNC_END(v7_dma_flush_range_no_dsb)
 +
 +/*
   *	dma_map_area(start, size, dir)
@@ -198,7 +196,7 @@ Signed-off-by: Tushar Ganatra <quic_tganatra@quicinc.com>
 + *	- size  - size of region
 + *	- dir   - DMA direction
   */
- ENTRY(v7_dma_map_area)
+ SYM_TYPED_FUNC_START(v7_dma_map_area)
  	add	r1, r1, r0
 --- a/arch/arm/mm/proc-syms.c
 +++ b/arch/arm/mm/proc-syms.c
@@ -216,7 +214,7 @@ Signed-off-by: Tushar Ganatra <quic_tganatra@quicinc.com>
  #endif
 --- a/arch/arm64/include/asm/assembler.h
 +++ b/arch/arm64/include/asm/assembler.h
-@@ -428,6 +428,45 @@ alternative_endif
+@@ -416,6 +416,45 @@ alternative_endif
  
  /*
   * Macro to perform a data cache maintenance for the interval
@@ -377,3 +375,35 @@ Signed-off-by: Tushar Ganatra <quic_tganatra@quicinc.com>
 +	__dma_clean_area_no_dsb(start, (void *)(end) - (void *)(start));
 +}
 +EXPORT_SYMBOL(dmac_clean_range_no_dsb);
+--- a/arch/arm/mm/cache.c
++++ b/arch/arm/mm/cache.c
+@@ -159,6 +159,9 @@ void v7_dma_unmap_area(const void *, siz
+ void v7_dma_inv_range(const void *, const void *);
+ void v7_dma_clean_range(const void *, const void *);
+ void v7_dma_flush_range(const void *, const void *);
++void v7_dma_inv_range_no_dsb(const void *, const void *);
++void v7_dma_clean_range_no_dsb(const void *, const void *);
++void v7_dma_flush_range_no_dsb(const void *, const void *);
+ 
+ struct cpu_cache_fns v7_cache_fns __initconst = {
+ 	.flush_icache_all = v7_flush_icache_all,
+@@ -174,6 +177,9 @@ struct cpu_cache_fns v7_cache_fns __init
+ 	.dma_inv_range = v7_dma_inv_range,
+ 	.dma_clean_range = v7_dma_clean_range,
+ 	.dma_flush_range = v7_dma_flush_range,
++	.dma_inv_range_no_dsb = v7_dma_inv_range_no_dsb,
++	.dma_clean_range_no_dsb = v7_dma_clean_range_no_dsb,
++	.dma_flush_range_no_dsb = v7_dma_flush_range_no_dsb,
+ };
+ 
+ /* Special quirky cache flush function for Broadcom B15 v7 caches */
+@@ -197,6 +203,9 @@ struct cpu_cache_fns b15_cache_fns __ini
+ 	.dma_inv_range = v7_dma_inv_range,
+ 	.dma_clean_range = v7_dma_clean_range,
+ 	.dma_flush_range = v7_dma_flush_range,
++	.dma_inv_range_no_dsb = v7_dma_inv_range_no_dsb,
++	.dma_clean_range_no_dsb = v7_dma_clean_range_no_dsb,
++	.dma_flush_range_no_dsb = v7_dma_flush_range_no_dsb,
+ };
+ #endif
+ 

@@ -14,7 +14,7 @@ Signed-off-by: Tian Yang <tiany@codeaurora.org>
 
 --- a/net/bridge/br_fdb.c
 +++ b/net/bridge/br_fdb.c
-@@ -305,6 +305,7 @@ struct net_bridge_fdb_entry *br_fdb_find
+@@ -306,6 +306,7 @@ struct net_bridge_fdb_entry *br_fdb_find
  {
  	return fdb_find_rcu(&br->fdb_hash_tbl, addr, vid);
  }

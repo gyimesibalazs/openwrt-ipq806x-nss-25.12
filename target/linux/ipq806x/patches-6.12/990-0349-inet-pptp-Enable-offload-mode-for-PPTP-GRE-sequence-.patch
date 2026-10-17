@@ -56,8 +56,8 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  static int add_chan(struct pppox_sock *sock,
  		    struct pptp_addr *sa)
  {
-@@ -188,8 +212,11 @@ static int pptp_xmit(struct ppp_channel
- 
+@@ -186,8 +210,11 @@ static int pptp_xmit(struct ppp_channel
+ 	__u32 seq_recv;
  	struct rtable *rt;
  	struct net_device *tdev;
 +	struct net_device *pptp_dev;
@@ -67,8 +67,8 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 +	int ret;
  
  	if (sk_pppox(po)->sk_state & PPPOX_DEAD)
- 		goto tx_error;
-@@ -283,14 +310,33 @@ static int pptp_xmit(struct ppp_channel
+ 		goto tx_drop;
+@@ -285,14 +312,33 @@ static int pptp_xmit(struct ppp_channel
  	ip_select_ident(net, skb, NULL);
  	ip_send_check(iph);
  
@@ -103,9 +103,9 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 +
 +	return 1;
  tx_error:
- 	kfree_skb(skb);
- 	return 1;
-@@ -344,6 +390,13 @@ static int pptp_rcv_core(struct sock *sk
+ 	ip_rt_put(rt);
+ tx_drop:
+@@ -348,6 +394,13 @@ static int pptp_rcv_core(struct sock *sk
  		goto drop;
  
  	payload = skb->data + headersize;
@@ -119,7 +119,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  	/* check for expected sequence number */
  	if (seq < opt->seq_recv + 1 || WRAPPED(opt->seq_recv, seq)) {
  		if ((payload[0] == PPP_ALLSTATIONS) && (payload[1] == PPP_UI) &&
-@@ -504,7 +557,7 @@ static int pptp_connect(struct socket *s
+@@ -509,7 +562,7 @@ static int pptp_connect(struct socket *s
  
  	opt->dst_addr = sp->sa_addr.pptp;
  	sk->sk_state |= PPPOX_CONNECTED;
@@ -128,7 +128,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
   end:
  	release_sock(sk);
  	return error;
-@@ -678,6 +731,81 @@ int pptp_session_find(struct pptp_opt *o
+@@ -683,6 +736,81 @@ int pptp_session_find(struct pptp_opt *o
  }
  EXPORT_SYMBOL(pptp_session_find);
  

@@ -17,7 +17,7 @@ Signed-off-by: John Sanli <quic_jsanli@quicinc.com>
 
 --- a/net/ipv6/ip6_tunnel.c
 +++ b/net/ipv6/ip6_tunnel.c
-@@ -1540,17 +1540,19 @@ ipxip6_tnl_xmit(struct sk_buff *skb, str
+@@ -1546,17 +1546,19 @@ ipxip6_tnl_xmit(struct sk_buff *skb, str
  	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
  	dsfield = INET_ECN_encapsulate(dsfield, orig_dsfield);
  

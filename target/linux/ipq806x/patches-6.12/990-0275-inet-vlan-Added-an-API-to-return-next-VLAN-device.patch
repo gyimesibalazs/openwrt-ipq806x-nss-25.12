@@ -18,7 +18,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 
 --- a/include/linux/if_vlan.h
 +++ b/include/linux/if_vlan.h
-@@ -144,6 +144,7 @@ extern int vlan_for_each(struct net_devi
+@@ -139,6 +139,7 @@ extern int vlan_for_each(struct net_devi
  			 int (*action)(struct net_device *dev, int vid,
  				       void *arg), void *arg);
  extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);

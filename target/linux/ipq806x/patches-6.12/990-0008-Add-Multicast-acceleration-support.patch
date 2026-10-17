@@ -115,7 +115,7 @@ Signed-off-by: Shyam Sunder <ssunde@codeaurora.org>
  extern int ip6mr_sk_done(struct sock *sk);
 --- a/net/ipv4/ipmr.c
 +++ b/net/ipv4/ipmr.c
-@@ -89,6 +89,9 @@ static struct net_device *vif_dev_read(c
+@@ -90,6 +90,9 @@ static struct net_device *vif_dev_read(c
  /* Special spinlock for queue of unresolved entries */
  static DEFINE_SPINLOCK(mfc_unres_lock);
  
@@ -125,7 +125,7 @@ Signed-off-by: Shyam Sunder <ssunde@codeaurora.org>
  /* We return to original Alan's scheme. Hash table of resolved
   * entries is changed only in process context and protected
   * with weak lock mrt_lock. Queue of unresolved entries is protected
-@@ -112,6 +115,9 @@ static void mroute_netlink_event(struct
+@@ -113,6 +116,9 @@ static void mroute_netlink_event(struct
  static void igmpmsg_netlink_event(const struct mr_table *mrt, struct sk_buff *pkt);
  static void mroute_clean_tables(struct mr_table *mrt, int flags);
  static void ipmr_expire_process(struct timer_list *t);
@@ -135,7 +135,7 @@ Signed-off-by: Shyam Sunder <ssunde@codeaurora.org>
  
  #ifdef CONFIG_IP_MROUTE_MULTIPLE_TABLES
  #define ipmr_for_each_table(mrt, net)					\
-@@ -233,6 +239,78 @@ static int ipmr_rule_fill(struct fib_rul
+@@ -234,6 +240,78 @@ static int ipmr_rule_fill(struct fib_rul
  	return 0;
  }
  
@@ -214,7 +214,7 @@ Signed-off-by: Shyam Sunder <ssunde@codeaurora.org>
  static const struct fib_rules_ops __net_initconst ipmr_rules_ops_template = {
  	.family		= RTNL_FAMILY_IPMR,
  	.rule_size	= sizeof(struct ipmr_rule),
-@@ -246,6 +324,154 @@ static const struct fib_rules_ops __net_
+@@ -247,6 +325,154 @@ static const struct fib_rules_ops __net_
  	.owner		= THIS_MODULE,
  };
  
@@ -369,7 +369,7 @@ Signed-off-by: Shyam Sunder <ssunde@codeaurora.org>
  static int __net_init ipmr_rules_init(struct net *net)
  {
  	struct fib_rules_ops *ops;
-@@ -1203,6 +1429,8 @@ static int ipmr_mfc_delete(struct mr_tab
+@@ -1204,6 +1430,8 @@ static int ipmr_mfc_delete(struct mr_tab
  	call_ipmr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, c, mrt->id);
  	mroute_netlink_event(mrt, c, RTM_DELROUTE);
  	mr_cache_put(&c->_c);
@@ -378,7 +378,7 @@ Signed-off-by: Shyam Sunder <ssunde@codeaurora.org>
  
  	return 0;
  }
-@@ -1233,6 +1461,8 @@ static int ipmr_mfc_add(struct net *net,
+@@ -1234,6 +1462,8 @@ static int ipmr_mfc_add(struct net *net,
  		call_ipmr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_REPLACE, c,
  					      mrt->id);
  		mroute_netlink_event(mrt, c, RTM_NEWROUTE);
@@ -679,7 +679,7 @@ Signed-off-by: Shyam Sunder <ssunde@codeaurora.org>
  	return 0;
  }
  
-@@ -1471,6 +1703,9 @@ static int ip6mr_mfc_add(struct net *net
+@@ -1468,6 +1700,9 @@ static int ip6mr_mfc_add(struct net *net
  		call_ip6mr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_REPLACE,
  					       c, mrt->id);
  		mr6_netlink_event(mrt, c, RTM_NEWROUTE);

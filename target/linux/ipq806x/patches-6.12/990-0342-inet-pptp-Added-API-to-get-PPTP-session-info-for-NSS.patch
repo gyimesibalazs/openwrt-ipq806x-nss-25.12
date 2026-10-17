@@ -50,7 +50,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  static int add_chan(struct pppox_sock *sock,
  		    struct pptp_addr *sa)
  {
-@@ -258,7 +283,12 @@ static int pptp_xmit(struct ppp_channel
+@@ -260,7 +285,12 @@ static int pptp_xmit(struct ppp_channel
  	ip_select_ident(net, skb, NULL);
  	ip_send_check(iph);
  
@@ -63,7 +63,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  	return 1;
  
  tx_error:
-@@ -371,6 +401,7 @@ static int pptp_rcv(struct sk_buff *skb)
+@@ -375,6 +405,7 @@ static int pptp_rcv(struct sk_buff *skb)
  	if (po) {
  		skb_dst_drop(skb);
  		nf_reset_ct(skb);
@@ -71,7 +71,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  		return sk_receive_skb(sk_pppox(po), skb, 0);
  	}
  drop:
-@@ -603,6 +634,50 @@ static int pptp_ppp_ioctl(struct ppp_cha
+@@ -608,6 +639,50 @@ static int pptp_ppp_ioctl(struct ppp_cha
  	return err;
  }
  

@@ -15,18 +15,18 @@ Signed-off-by: Tallapragada Kalyan <quic_ktallapr@quicinc.com>
 
 --- a/include/linux/skbuff.h
 +++ b/include/linux/skbuff.h
-@@ -989,6 +989,8 @@ struct sk_buff {
- #if IS_ENABLED(CONFIG_IP_SCTP)
- 	__u8			csum_not_inet:1;
+@@ -988,6 +988,8 @@ struct sk_buff {
+ #ifdef CONFIG_IPV6_NDISC_NODETYPE
+ 	__u8			ndisc_nodetype:2;
  #endif
 +	/* Linear packets processed by dev_fast_xmit() */
 +	__u8			fast_xmit:1;
  
- #if defined(CONFIG_NET_SCHED) || defined(CONFIG_NET_XGRESS)
- 	__u16			tc_index;	/* traffic control index */
+ #if IS_ENABLED(CONFIG_IP_VS)
+ 	__u8			ipvs_property:1;
 --- a/net/core/dev.c
 +++ b/net/core/dev.c
-@@ -4344,6 +4344,10 @@ bool dev_fast_xmit(struct sk_buff *skb,
+@@ -4450,6 +4450,10 @@ bool dev_fast_xmit(struct sk_buff *skb,
  	int cpu;
  	netdev_tx_t rc;
  

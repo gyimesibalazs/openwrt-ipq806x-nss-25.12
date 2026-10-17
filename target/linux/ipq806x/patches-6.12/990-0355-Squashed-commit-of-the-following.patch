@@ -55,7 +55,7 @@ Change-Id: I3569082ddbdf3f30b8ab273cb7dc9ab2bfbc886c
  #define IFLA_IPTUN_MAX	(__IFLA_IPTUN_MAX - 1)
 --- a/net/ipv6/ip6_tunnel.c
 +++ b/net/ipv6/ip6_tunnel.c
-@@ -839,7 +839,7 @@ EXPORT_SYMBOL_GPL(ip6_tnl_rcv_ctl);
+@@ -846,7 +846,7 @@ EXPORT_SYMBOL_GPL(ip6_tnl_rcv_ctl);
   **/
  static void ip4ip6_fmr_calc(struct in6_addr *dest,
  		const struct iphdr *iph, const uint8_t *end,
@@ -64,7 +64,7 @@ Change-Id: I3569082ddbdf3f30b8ab273cb7dc9ab2bfbc886c
  {
  	int psidlen = fmr->ea_len - (32 - fmr->ip4_prefix_len);
  	u8 *portp = NULL;
-@@ -927,10 +927,28 @@ static void ip4ip6_fmr_calc(struct in6_a
+@@ -934,10 +934,28 @@ static void ip4ip6_fmr_calc(struct in6_a
  			<< (64 - fmr->ea_len - fromrem));
  		t = cpu_to_be64(t | (eabits >> fromrem));
  		memcpy(&dest->s6_addr[frombyte], &t, bytes);
@@ -94,7 +94,7 @@ Change-Id: I3569082ddbdf3f30b8ab273cb7dc9ab2bfbc886c
  static int __ip6_tnl_rcv(struct ip6_tnl *tunnel, struct sk_buff *skb,
  			 const struct tnl_ptk_info *tpi,
  			 struct metadata_dst *tun_dst,
-@@ -1011,7 +1029,8 @@ static int __ip6_tnl_rcv(struct ip6_tnl
+@@ -1016,7 +1034,8 @@ static int __ip6_tnl_rcv(struct ip6_tnl
  			/* Check that IPv6 matches IPv4 source to prevent spoofing */
  			if (fmr)
  				ip4ip6_fmr_calc(&expected, ip_hdr(skb),
@@ -104,7 +104,7 @@ Change-Id: I3569082ddbdf3f30b8ab273cb7dc9ab2bfbc886c
  
  			if (!ipv6_addr_equal(&ipv6h->saddr, &expected)) {
  				rcu_read_unlock();
-@@ -1573,7 +1592,8 @@ ipxip6_tnl_xmit(struct sk_buff *skb, str
+@@ -1579,7 +1598,8 @@ ipxip6_tnl_xmit(struct sk_buff *skb, str
  
  		/* change dstaddr according to FMR */
  		if (fmr)
@@ -114,7 +114,7 @@ Change-Id: I3569082ddbdf3f30b8ab273cb7dc9ab2bfbc886c
  	}
  
  	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6))
-@@ -2207,6 +2227,9 @@ static void ip6_tnl_netlink_parms(struct
+@@ -2208,6 +2228,9 @@ static void ip6_tnl_netlink_parms(struct
  	if (data[IFLA_IPTUN_FWMARK])
  		parms->fwmark = nla_get_u32(data[IFLA_IPTUN_FWMARK]);
  

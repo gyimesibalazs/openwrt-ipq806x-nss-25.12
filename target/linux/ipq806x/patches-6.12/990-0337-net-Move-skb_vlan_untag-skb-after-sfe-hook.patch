@@ -11,7 +11,7 @@ Signed-off-by: Ratheesh Kannoth <quic_rkannoth@quicinc.com>
 
 --- a/net/core/dev.c
 +++ b/net/core/dev.c
-@@ -558,7 +558,6 @@ static inline void netdev_set_addr_lockd
+@@ -564,7 +564,6 @@ static inline void netdev_set_addr_lockd
   *
   *******************************************************************************/
  
@@ -19,7 +19,7 @@ Signed-off-by: Ratheesh Kannoth <quic_rkannoth@quicinc.com>
  /*
   *	Add a protocol ID to the list. Now that the input handler is
   *	smarter we can dispense with all the messy stuff that used to be
-@@ -660,7 +659,6 @@ void dev_remove_pack(struct packet_type
+@@ -666,7 +665,6 @@ void dev_remove_pack(struct packet_type
  }
  EXPORT_SYMBOL(dev_remove_pack);
  
@@ -27,7 +27,7 @@ Signed-off-by: Ratheesh Kannoth <quic_rkannoth@quicinc.com>
  /*******************************************************************************
   *
   *			    Device Interface Subroutines
-@@ -1670,7 +1668,6 @@ void dev_close(struct net_device *dev)
+@@ -1690,7 +1688,6 @@ void dev_close(struct net_device *dev)
  }
  EXPORT_SYMBOL(dev_close);
  
@@ -35,7 +35,7 @@ Signed-off-by: Ratheesh Kannoth <quic_rkannoth@quicinc.com>
  /**
   *	dev_disable_lro - disable Large Receive Offload on a device
   *	@dev: device
-@@ -3259,7 +3256,6 @@ void dev_kfree_skb_any_reason(struct sk_
+@@ -3284,7 +3281,6 @@ void dev_kfree_skb_any_reason(struct sk_
  }
  EXPORT_SYMBOL(dev_kfree_skb_any_reason);
  
@@ -43,7 +43,7 @@ Signed-off-by: Ratheesh Kannoth <quic_rkannoth@quicinc.com>
  /**
   * netif_device_detach - mark device as removed
   * @dev: network device
-@@ -5571,12 +5567,6 @@ another_round:
+@@ -5724,12 +5720,6 @@ another_round:
  		}
  	}
  
@@ -56,7 +56,7 @@ Signed-off-by: Ratheesh Kannoth <quic_rkannoth@quicinc.com>
  	if (likely(!fast_tc_filter)) {
  		fast_recv = rcu_dereference(athrs_fast_nat_recv);
  		if (fast_recv) {
-@@ -5587,6 +5577,12 @@ another_round:
+@@ -5740,6 +5730,12 @@ another_round:
  		}
  	}
  
@@ -69,7 +69,7 @@ Signed-off-by: Ratheesh Kannoth <quic_rkannoth@quicinc.com>
  	if (skb_skip_tc_classify(skb))
  		goto skip_classify;
  
-@@ -8583,7 +8579,6 @@ void *netdev_lower_dev_get_private(struc
+@@ -8820,7 +8816,6 @@ void *netdev_lower_dev_get_private(struc
  }
  EXPORT_SYMBOL(netdev_lower_dev_get_private);
  

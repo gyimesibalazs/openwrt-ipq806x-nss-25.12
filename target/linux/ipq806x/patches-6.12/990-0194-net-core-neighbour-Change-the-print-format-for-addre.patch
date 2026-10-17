@@ -24,7 +24,7 @@ Signed-off-by: Subash Abhinov Kasiviswanathan <subashab@codeaurora.org>
 
 --- a/net/core/neighbour.c
 +++ b/net/core/neighbour.c
-@@ -893,7 +893,7 @@ void neigh_destroy(struct neighbour *nei
+@@ -900,7 +900,7 @@ void neigh_destroy(struct neighbour *nei
  	NEIGH_CACHE_STAT_INC(neigh->tbl, destroys);
  
  	if (!neigh->dead) {

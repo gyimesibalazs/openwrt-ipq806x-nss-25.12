@@ -16,7 +16,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 
 --- a/drivers/net/ppp/pptp.c
 +++ b/drivers/net/ppp/pptp.c
-@@ -603,9 +603,36 @@ static int pptp_ppp_ioctl(struct ppp_cha
+@@ -608,9 +608,36 @@ static int pptp_ppp_ioctl(struct ppp_cha
  	return err;
  }
  
@@ -55,7 +55,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  static struct proto pptp_sk_proto __read_mostly = {
 --- a/net/l2tp/l2tp_ppp.c
 +++ b/net/l2tp/l2tp_ppp.c
-@@ -123,9 +123,15 @@ struct pppol2tp_session {
+@@ -122,9 +122,15 @@ struct pppol2tp_session {
  };
  
  static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb);
@@ -71,7 +71,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  };
  
  static const struct proto_ops pppol2tp_ops;
-@@ -328,6 +334,30 @@ error:
+@@ -312,6 +318,30 @@ error:
  	return error;
  }
  

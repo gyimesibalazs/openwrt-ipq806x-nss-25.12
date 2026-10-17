@@ -37,7 +37,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  	const struct dst_entry *dst = skb_dst(skb);
 --- a/include/net/route.h
 +++ b/include/net/route.h
-@@ -238,6 +238,9 @@ struct rtable *rt_dst_alloc(struct net_d
+@@ -246,6 +246,9 @@ struct rtable *rt_dst_alloc(struct net_d
  			    unsigned int flags, u16 type, bool noxfrm);
  struct rtable *rt_dst_clone(struct net_device *dev, struct rtable *rt);
  
@@ -49,7 +49,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  void fib_del_ifaddr(struct in_ifaddr *, struct in_ifaddr *);
 --- a/net/ipv4/fib_trie.c
 +++ b/net/ipv4/fib_trie.c
-@@ -1195,6 +1195,9 @@ static int fib_insert_alias(struct trie
+@@ -1196,6 +1196,9 @@ static int fib_insert_alias(struct trie
  static void fib_remove_alias(struct trie *t, struct key_vector *tp,
  			     struct key_vector *l, struct fib_alias *old);
  
@@ -59,7 +59,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  /* Caller must hold RTNL. */
  int fib_table_insert(struct net *net, struct fib_table *tb,
  		     struct fib_config *cfg, struct netlink_ext_ack *extack)
-@@ -1385,6 +1388,8 @@ int fib_table_insert(struct net *net, st
+@@ -1386,6 +1389,8 @@ int fib_table_insert(struct net *net, st
  	rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen, new_fa->tb_id,
  		  &cfg->fc_nlinfo, nlflags);
  succeeded:
@@ -69,7 +69,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  
  out_remove_new_fa:
 @@ -1754,6 +1759,8 @@ int fib_table_delete(struct net *net, st
- 	if (fa_to_delete->fa_state & FA_S_ACCESSED)
+ 	if (READ_ONCE(fa_to_delete->fa_state) & FA_S_ACCESSED)
  		rt_cache_flush(cfg->fc_nlinfo.nl_net);
  
 +	blocking_notifier_call_chain(&iproute_chain,
@@ -77,7 +77,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  	fib_release_info(fa_to_delete->fa_info);
  	alias_free_mem_rcu(fa_to_delete);
  	return 0;
-@@ -2386,6 +2393,18 @@ void __init fib_trie_init(void)
+@@ -2387,6 +2394,18 @@ void __init fib_trie_init(void)
  					   0, SLAB_PANIC | SLAB_ACCOUNT, NULL);
  }
  
@@ -98,7 +98,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  	struct fib_table *tb;
 --- a/net/ipv6/route.c
 +++ b/net/ipv6/route.c
-@@ -198,6 +198,9 @@ static void rt6_uncached_list_flush_dev(
+@@ -196,6 +196,9 @@ static void rt6_uncached_list_flush_dev(
  	}
  }
  
@@ -108,7 +108,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  static inline const void *choose_neigh_daddr(const struct in6_addr *p,
  					     struct sk_buff *skb,
  					     const void *daddr)
-@@ -3910,6 +3913,9 @@ int ip6_route_add(struct fib6_config *cf
+@@ -3930,6 +3933,9 @@ int ip6_route_add(struct fib6_config *cf
  		return PTR_ERR(rt);
  
  	err = __ip6_ins_rt(rt, &cfg->fc_nlinfo, extack);
@@ -118,7 +118,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  	fib6_info_release(rt);
  
  	return err;
-@@ -3930,7 +3936,9 @@ static int __ip6_del_rt(struct fib6_info
+@@ -3950,7 +3956,9 @@ static int __ip6_del_rt(struct fib6_info
  	spin_lock_bh(&table->tb6_lock);
  	err = fib6_del(rt, info);
  	spin_unlock_bh(&table->tb6_lock);
@@ -129,7 +129,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  out:
  	fib6_info_release(rt);
  	return err;
-@@ -6409,6 +6417,18 @@ static int ip6_route_dev_notify(struct n
+@@ -6444,6 +6452,18 @@ static int ip6_route_dev_notify(struct n
  	return NOTIFY_OK;
  }
  

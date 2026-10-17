@@ -16,9 +16,9 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 
 --- a/include/linux/if_bridge.h
 +++ b/include/linux/if_bridge.h
-@@ -72,7 +72,8 @@ void brioctl_set(int (*hook)(struct net
- int br_ioctl_call(struct net *net, struct net_bridge *br, unsigned int cmd,
- 		  struct ifreq *ifr, void __user *uarg);
+@@ -70,7 +70,8 @@ void brioctl_set(int (*hook)(struct net
+ 			     void __user *uarg));
+ int br_ioctl_call(struct net *net, unsigned int cmd, void __user *uarg);
  extern struct net_device *br_port_dev_get(struct net_device *dev,
 -					  unsigned char *addr);
 +					  unsigned char *addr,
@@ -26,7 +26,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  extern void br_refresh_fdb_entry(struct net_device *dev, const char *addr);
  extern void br_dev_update_stats(struct net_device *dev,
  				struct rtnl_link_stats64 *nlstats);
-@@ -223,4 +224,10 @@ static inline clock_t br_get_ageing_time
+@@ -221,4 +222,10 @@ static inline clock_t br_get_ageing_time
  }
  #endif
  
@@ -50,7 +50,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  /*
   * Determine initial path cost based on speed.
   * using recommendations from 802.1d standard
-@@ -777,13 +781,17 @@ bool br_port_flag_is_set(const struct ne
+@@ -778,13 +782,17 @@ bool br_port_flag_is_set(const struct ne
  EXPORT_SYMBOL_GPL(br_port_flag_is_set);
  
  /* br_port_dev_get()
@@ -71,7 +71,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  {
  	struct net_bridge_fdb_entry *fdbe;
  	struct net_bridge *br;
-@@ -793,15 +801,37 @@ struct net_device *br_port_dev_get(struc
+@@ -794,15 +802,37 @@ struct net_device *br_port_dev_get(struc
  	if (!(dev->priv_flags & IFF_EBRIDGE))
  		return NULL;
  

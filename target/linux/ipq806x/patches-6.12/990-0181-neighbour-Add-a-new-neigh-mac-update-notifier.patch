@@ -18,7 +18,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 
 --- a/include/net/neighbour.h
 +++ b/include/net/neighbour.h
-@@ -249,6 +249,11 @@ static inline int neigh_parms_family(str
+@@ -250,6 +250,11 @@ static inline int neigh_parms_family(str
  	return p->tbl->family;
  }
  
@@ -30,7 +30,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  #define NEIGH_PRIV_ALIGN	sizeof(long long)
  #define NEIGH_ENTRY_SIZE(size)	ALIGN((size), NEIGH_PRIV_ALIGN)
  
-@@ -395,6 +400,9 @@ void __neigh_for_each_release(struct nei
+@@ -396,6 +401,9 @@ void __neigh_for_each_release(struct nei
  			      int (*cb)(struct neighbour *));
  int neigh_xmit(int fam, struct net_device *, const void *, struct sk_buff *);
  
@@ -42,7 +42,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  	struct neigh_table *tbl;
 --- a/net/core/neighbour.c
 +++ b/net/core/neighbour.c
-@@ -1275,6 +1275,20 @@ static void neigh_update_hhs(struct neig
+@@ -1282,6 +1282,20 @@ static void neigh_update_hhs(struct neig
  	}
  }
  
@@ -63,7 +63,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  /* Generic update routine.
     -- lladdr is new lladdr or NULL, if it is not supplied.
     -- new    is new state.
-@@ -1303,6 +1317,7 @@ static int __neigh_update(struct neighbo
+@@ -1310,6 +1324,7 @@ static int __neigh_update(struct neighbo
  	struct net_device *dev;
  	int err, notify = 0;
  	u8 old;
@@ -71,7 +71,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  
  	trace_neigh_update(neigh, lladdr, new, flags, nlmsg_pid);
  
-@@ -1312,6 +1327,8 @@ static int __neigh_update(struct neighbo
+@@ -1319,6 +1334,8 @@ static int __neigh_update(struct neighbo
  	old    = neigh->nud_state;
  	err    = -EPERM;
  
@@ -80,7 +80,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  	if (neigh->dead) {
  		NL_SET_ERR_MSG(extack, "Neighbor entry is now dead");
  		new = old;
-@@ -1353,7 +1370,11 @@ static int __neigh_update(struct neighbo
+@@ -1360,7 +1377,11 @@ static int __neigh_update(struct neighbo
  		   and a new address is proposed:
  		   - compare new & old
  		   - if they are different, check override flag
@@ -92,7 +92,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  		if ((old & NUD_VALID) &&
  		    !memcmp(lladdr, neigh->ha, dev->addr_len))
  			lladdr = neigh->ha;
-@@ -1476,8 +1497,13 @@ out:
+@@ -1483,8 +1504,13 @@ out:
  		neigh_update_gc_list(neigh);
  	if (managed_update)
  		neigh_update_managed_list(neigh);

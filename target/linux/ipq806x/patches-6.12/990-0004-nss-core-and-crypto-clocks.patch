@@ -227,7 +227,7 @@ db30db7d342f
  	.disable = clk_disable_regmap,
 --- a/drivers/clk/qcom/clk-rcg.h
 +++ b/drivers/clk/qcom/clk-rcg.h
-@@ -191,4 +191,7 @@ struct clk_rcg_dfs_data {
+@@ -213,4 +213,7 @@ struct clk_rcg_dfs_data {
  extern int qcom_cc_register_rcg_dfs(struct regmap *regmap,
  				    const struct clk_rcg_dfs_data *rcgs,
  				    size_t len);

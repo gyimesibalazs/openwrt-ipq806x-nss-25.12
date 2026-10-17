@@ -26,11 +26,11 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
 -        skb_iif = skb->skb_iif;
 +	skb_iif = skb->skb_iif;
  
- 	skb_scrub_packet(skb, xnet);
- 
+ 	if (unlikely(dev_recursion_level() > IP_TUNNEL_RECURSION_LIMIT)) {
+ 		if (dev) {
 --- a/net/ipv6/ip6_tunnel.c
 +++ b/net/ipv6/ip6_tunnel.c
-@@ -100,6 +100,23 @@ static inline int ip6_tnl_mpls_supported
+@@ -101,6 +101,23 @@ static inline int ip6_tnl_mpls_supported
  #define for_each_ip6_tunnel_rcu(start) \
  	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
  
@@ -54,7 +54,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  /**
   * ip6_tnl_lookup - fetch tunnel matching the end-point addresses
   *   @net: network namespace
-@@ -1024,6 +1041,9 @@ static int __ip6_tnl_rcv(struct ip6_tnl
+@@ -1029,6 +1046,9 @@ static int __ip6_tnl_rcv(struct ip6_tnl
  	if (tun_dst)
  		skb_dst_set(skb, (struct dst_entry *)tun_dst);
  
@@ -64,7 +64,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  	gro_cells_receive(&tunnel->gro_cells, skb);
  	return 0;
  
-@@ -1105,7 +1125,6 @@ static int ipxip6_rcv(struct sk_buff *sk
+@@ -1112,7 +1132,6 @@ static int ipxip6_rcv(struct sk_buff *sk
  	rcu_read_unlock();
  
  	return ret;
@@ -72,7 +72,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  drop:
  	rcu_read_unlock();
  	kfree_skb(skb);
-@@ -1424,6 +1443,9 @@ route_lookup:
+@@ -1430,6 +1449,9 @@ route_lookup:
  	ipv6h->nexthdr = proto;
  	ipv6h->saddr = fl6->saddr;
  	ipv6h->daddr = fl6->daddr;
@@ -84,7 +84,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  tx_err_link_failure:
 --- a/net/ipv6/sit.c
 +++ b/net/ipv6/sit.c
-@@ -90,6 +90,20 @@ static inline struct sit_net *dev_to_sit
+@@ -91,6 +91,20 @@ static inline struct sit_net *dev_to_sit
  	return net_generic(t->net, sit_net_id);
  }
  
@@ -105,7 +105,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  /*
   * Must be invoked with rcu_read_lock
   */
-@@ -722,6 +736,8 @@ static int ipip6_rcv(struct sk_buff *skb
+@@ -725,6 +739,8 @@ static int ipip6_rcv(struct sk_buff *skb
  
  		dev_sw_netstats_rx_add(tunnel->dev, skb->len);
  
@@ -114,7 +114,7 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  		netif_rx(skb);
  
  		return 0;
-@@ -1031,6 +1047,8 @@ static netdev_tx_t ipip6_tunnel_xmit(str
+@@ -1035,6 +1051,8 @@ static netdev_tx_t ipip6_tunnel_xmit(str
  
  	skb_set_inner_ipproto(skb, IPPROTO_IPV6);
  

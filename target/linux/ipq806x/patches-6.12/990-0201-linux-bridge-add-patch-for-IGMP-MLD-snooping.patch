@@ -23,7 +23,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 
 --- a/include/linux/if_bridge.h
 +++ b/include/linux/if_bridge.h
-@@ -66,9 +66,11 @@
+@@ -66,9 +66,11 @@ struct br_ip_list {
  #define BR_DEFAULT_AGEING_TIME	(300 * HZ)
  
  struct net_bridge;
@@ -89,7 +89,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  	u16 vid = 0;
  	u8 state;
  
-@@ -182,6 +188,10 @@ int br_handle_frame_finish(struct net *n
+@@ -180,6 +186,10 @@ int br_handle_frame_finish(struct net *n
  
  	switch (pkt_type) {
  	case BR_PKT_MULTICAST:
@@ -97,12 +97,12 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 +		if (!__br_get(multicast_handle_hook, true, p, skb))
 +			goto out;
 +
- 		mdst = br_mdb_get(brmctx, skb, vid);
+ 		mdst = br_mdb_entry_skb_get(brmctx, skb, vid);
  		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
  		    br_multicast_querier_exists(brmctx, eth_hdr(skb), mdst)) {
 --- a/net/bridge/br_private.h
 +++ b/net/bridge/br_private.h
-@@ -909,6 +909,7 @@ void br_manage_promisc(struct net_bridge
+@@ -917,6 +917,7 @@ void br_manage_promisc(struct net_bridge
  int nbp_backup_change(struct net_bridge_port *p, struct net_device *backup_dev);
  
  /* br_input.c */
@@ -110,7 +110,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb);
  rx_handler_func_t *br_get_rx_handler(const struct net_device *dev);
  
-@@ -2292,4 +2293,8 @@ void br_do_suppress_nd(struct sk_buff *s
+@@ -2325,4 +2326,8 @@ void br_do_suppress_nd(struct sk_buff *s
  		       u16 vid, struct net_bridge_port *p, struct nd_msg *msg);
  struct nd_msg *br_is_nd_neigh_msg(struct sk_buff *skb, struct nd_msg *m);
  bool br_is_neigh_suppress_enabled(const struct net_bridge_port *p, u16 vid);

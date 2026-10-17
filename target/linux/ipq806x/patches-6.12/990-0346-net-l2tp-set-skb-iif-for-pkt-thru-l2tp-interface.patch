@@ -13,7 +13,7 @@ Signed-off-by: ratheesh kannoth <rkannoth@codeaurora.org>
 
 --- a/drivers/net/ppp/ppp_generic.c
 +++ b/drivers/net/ppp/ppp_generic.c
-@@ -2996,6 +2996,20 @@ char *ppp_dev_name(struct ppp_channel *c
+@@ -3006,6 +3006,22 @@ char *ppp_dev_name(struct ppp_channel *c
  	return name;
  }
  
@@ -21,20 +21,22 @@ Signed-off-by: ratheesh kannoth <rkannoth@codeaurora.org>
 +int ppp_dev_index(struct ppp_channel *chan)
 +{
 +	struct channel *pch = chan->ppp;
++	struct ppp *ppp;
 +	int ifindex = 0;
 +
 +	if (pch) {
-+		read_lock_bh(&pch->upl);
-+		if (pch->ppp && pch->ppp->dev)
-+			ifindex = pch->ppp->dev->ifindex;
-+		read_unlock_bh(&pch->upl);
++		rcu_read_lock();
++		ppp = rcu_dereference(pch->ppp);
++		if (ppp && ppp->dev)
++			ifindex = ppp->dev->ifindex;
++		rcu_read_unlock();
 +	}
 +	return ifindex;
 +}
  
  /*
   * Disconnect a channel from the generic layer.
-@@ -3864,6 +3878,7 @@ EXPORT_SYMBOL(ppp_unregister_channel);
+@@ -3894,6 +3910,7 @@ EXPORT_SYMBOL(ppp_unregister_channel);
  EXPORT_SYMBOL(ppp_channel_index);
  EXPORT_SYMBOL(ppp_unit_number);
  EXPORT_SYMBOL(ppp_dev_name);
@@ -52,7 +54,7 @@ Signed-off-by: ratheesh kannoth <rkannoth@codeaurora.org>
  #include <linux/notifier.h>
  
  /* PPP channel connection event types */
-@@ -118,6 +119,9 @@ extern void ppp_unregister_channel(struc
+@@ -117,6 +118,9 @@ extern void ppp_unregister_channel(struc
  /* Get the channel number for a channel */
  extern int ppp_channel_index(struct ppp_channel *);
  
@@ -64,7 +66,7 @@ Signed-off-by: ratheesh kannoth <rkannoth@codeaurora.org>
  
 --- a/net/l2tp/l2tp_ppp.c
 +++ b/net/l2tp/l2tp_ppp.c
-@@ -243,6 +243,7 @@ static void pppol2tp_recv(struct l2tp_se
+@@ -227,6 +227,7 @@ static void pppol2tp_recv(struct l2tp_se
  		struct pppox_sock *po;
  
  		po = pppox_sk(sk);
@@ -72,7 +74,7 @@ Signed-off-by: ratheesh kannoth <rkannoth@codeaurora.org>
  		ppp_input(&po->chan, skb);
  	} else {
  		if (sock_queue_rcv_skb(sk, skb) < 0) {
-@@ -402,6 +403,9 @@ static int pppol2tp_xmit(struct ppp_chan
+@@ -386,6 +387,9 @@ static int pppol2tp_xmit(struct ppp_chan
  	__skb_push(skb, 2);
  	skb->data[0] = PPP_ALLSTATIONS;
  	skb->data[1] = PPP_UI;

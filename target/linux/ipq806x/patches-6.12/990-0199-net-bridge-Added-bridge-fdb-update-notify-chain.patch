@@ -29,7 +29,7 @@ Signed-off-by: Murat Sezgin <quic_msezgin@quicinc.com>
 
 --- a/include/linux/if_bridge.h
 +++ b/include/linux/if_bridge.h
-@@ -77,6 +77,8 @@
+@@ -77,6 +77,8 @@ extern void br_dev_update_stats(struct n
  extern struct net_bridge_fdb_entry *br_fdb_has_entry(struct net_device *dev,
  						     const char *addr,
  						     __u16 vid);
@@ -40,7 +40,7 @@ Signed-off-by: Murat Sezgin <quic_msezgin@quicinc.com>
  int br_multicast_list_adjacent(struct net_device *dev,
 --- a/net/bridge/br_fdb.c
 +++ b/net/bridge/br_fdb.c
-@@ -519,6 +519,20 @@ out:
+@@ -541,6 +541,20 @@ out:
  	spin_unlock_bh(&br->hash_lock);
  }
  
@@ -61,7 +61,7 @@ Signed-off-by: Murat Sezgin <quic_msezgin@quicinc.com>
  void br_fdb_cleanup(struct work_struct *work)
  {
  	struct net_bridge *br = container_of(work, struct net_bridge,
-@@ -527,6 +541,7 @@ void br_fdb_cleanup(struct work_struct *
+@@ -549,6 +563,7 @@ void br_fdb_cleanup(struct work_struct *
  	unsigned long delay = hold_time(br);
  	unsigned long work_delay = delay;
  	unsigned long now = jiffies;
@@ -69,7 +69,7 @@ Signed-off-by: Murat Sezgin <quic_msezgin@quicinc.com>
  
  	/* this part is tricky, in order to avoid blocking learning and
  	 * consequently forwarding, we rely on rcu to delete objects with
-@@ -553,8 +568,12 @@ void br_fdb_cleanup(struct work_struct *
+@@ -575,8 +590,12 @@ void br_fdb_cleanup(struct work_struct *
  			work_delay = min(work_delay, this_timer - now);
  		} else {
  			spin_lock_bh(&br->hash_lock);
@@ -84,7 +84,7 @@ Signed-off-by: Murat Sezgin <quic_msezgin@quicinc.com>
  			spin_unlock_bh(&br->hash_lock);
  		}
  	}
-@@ -881,6 +900,7 @@ void br_fdb_update(struct net_bridge *br
+@@ -928,6 +947,7 @@ void br_fdb_update(struct net_bridge *br
  				br_switchdev_fdb_notify(br, fdb, RTM_DELNEIGH);
  				WRITE_ONCE(fdb->dst, source);
  				fdb_modified = true;
@@ -92,7 +92,7 @@ Signed-off-by: Murat Sezgin <quic_msezgin@quicinc.com>
  				/* Take over HW learned entry */
  				if (unlikely(test_bit(BR_FDB_ADDED_BY_EXT_LEARN,
  						      &fdb->flags)))
-@@ -891,6 +911,10 @@ void br_fdb_update(struct net_bridge *br
+@@ -938,6 +958,10 @@ void br_fdb_update(struct net_bridge *br
  				 */
  				if (unlikely(test_bit(BR_FDB_LOCKED, &fdb->flags)))
  					clear_bit(BR_FDB_LOCKED, &fdb->flags);
@@ -102,4 +102,4 @@ Signed-off-by: Murat Sezgin <quic_msezgin@quicinc.com>
 +					0, (void *)addr);
  			}
  
- 			if (unlikely(test_bit(BR_FDB_ADDED_BY_USER, &flags)))
+ 			if (unlikely(test_bit(BR_FDB_ADDED_BY_USER, &flags))) {

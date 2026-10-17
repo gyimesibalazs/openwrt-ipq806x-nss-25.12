@@ -18,7 +18,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 
 --- a/drivers/net/ppp/ppp_generic.c
 +++ b/drivers/net/ppp/ppp_generic.c
-@@ -3747,6 +3747,32 @@ int ppp_is_multilink(struct net_device *
+@@ -3779,6 +3779,32 @@ int ppp_is_multilink(struct net_device *
  }
  EXPORT_SYMBOL(ppp_is_multilink);
  
@@ -51,7 +51,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  /* ppp_channel_get_protocol()
   *	Call this to obtain the underlying protocol of the PPP channel,
   *	e.g. PX_PROTO_OE
-@@ -3851,6 +3877,59 @@ int ppp_hold_channels(struct net_device
+@@ -3883,6 +3909,59 @@ int ppp_hold_channels(struct net_device
  }
  EXPORT_SYMBOL(ppp_hold_channels);
  
@@ -143,7 +143,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  #endif
 --- a/include/linux/ppp_channel.h
 +++ b/include/linux/ppp_channel.h
-@@ -83,10 +83,17 @@ extern int ppp_hold_channels(struct net_
+@@ -82,10 +82,17 @@ extern int ppp_hold_channels(struct net_
  			     unsigned int chan_sz);
  
  bool ppp_is_cp_enabled(struct net_device *dev);
@@ -163,7 +163,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
   */
 --- a/net/l2tp/l2tp_ppp.c
 +++ b/net/l2tp/l2tp_ppp.c
-@@ -126,12 +126,11 @@ static int pppol2tp_xmit(struct ppp_chan
+@@ -125,12 +125,11 @@ static int pppol2tp_xmit(struct ppp_chan
  static int pppol2tp_get_channel_protocol(struct ppp_channel *);
  static void pppol2tp_hold_chan(struct ppp_channel *);
  static void pppol2tp_release_chan(struct ppp_channel *);
@@ -181,7 +181,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  };
  
  static const struct proto_ops pppol2tp_ops;
-@@ -359,6 +358,46 @@ static int pppol2tp_get_channel_protocol
+@@ -343,6 +342,46 @@ static int pppol2tp_get_channel_protocol
  	return PX_PROTO_OL2TP;
  }
  
@@ -228,12 +228,12 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  /* Transmit function called by generic PPP driver.  Sends PPP frame
   * over PPPoL2TP socket.
   *
-@@ -852,7 +891,7 @@ static int pppol2tp_connect(struct socke
+@@ -828,7 +867,7 @@ static int pppol2tp_connect(struct socke
  	po->chan.hdrlen = PPPOL2TP_L2TP_HDR_SIZE_NOSEQ;
  
  	po->chan.private = sk;
 -	po->chan.ops	 = &pppol2tp_chan_ops;
 +	po->chan.ops	 = &pppol2tp_chan_ops.ops;
  	po->chan.mtu	 = pppol2tp_tunnel_mtu(tunnel);
+ 	po->chan.direct_xmit	= true;
  
- 	error = ppp_register_net_channel(sock_net(sk), &po->chan);

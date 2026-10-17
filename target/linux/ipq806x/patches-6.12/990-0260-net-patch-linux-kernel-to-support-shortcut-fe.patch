@@ -16,18 +16,18 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
 
 --- a/include/linux/skbuff.h
 +++ b/include/linux/skbuff.h
-@@ -991,6 +991,8 @@ struct sk_buff {
+@@ -990,6 +990,8 @@ struct sk_buff {
  #endif
  	/* Linear packets processed by dev_fast_xmit() */
  	__u8			fast_xmit:1;
 +	__u8			fast_forwarded:1;
 +	/* 1 or 3 bit hole */
  
- #if defined(CONFIG_NET_SCHED) || defined(CONFIG_NET_XGRESS)
- 	__u16			tc_index;	/* traffic control index */
+ #if IS_ENABLED(CONFIG_IP_VS)
+ 	__u8			ipvs_property:1;
 --- a/net/core/dev.c
 +++ b/net/core/dev.c
-@@ -3626,8 +3626,13 @@ static int xmit_one(struct sk_buff *skb,
+@@ -3686,8 +3686,13 @@ static int xmit_one(struct sk_buff *skb,
  	unsigned int len;
  	int rc;
  
@@ -43,7 +43,7 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  
  #ifdef CONFIG_ETHERNET_PACKET_MANGLE
  	if (dev->eth_mangle_tx && !(skb = dev->eth_mangle_tx(dev, skb)))
-@@ -5480,6 +5485,9 @@ void netdev_rx_handler_unregister(struct
+@@ -5632,6 +5637,9 @@ void netdev_rx_handler_unregister(struct
  }
  EXPORT_SYMBOL_GPL(netdev_rx_handler_unregister);
  
@@ -53,15 +53,15 @@ Signed-off-by: Murat Sezgin <msezgin@codeaurora.org>
  /*
   * Limit the use of PFMEMALLOC reserves to those protocols that implement
   * the special handling of PFMEMALLOC skbs.
-@@ -5527,6 +5535,7 @@ static int __netif_receive_skb_core(stru
+@@ -5679,6 +5687,7 @@ static int __netif_receive_skb_core(stru
  	bool deliver_exact = false;
  	int ret = NET_RX_DROP;
  	__be16 type;
 +	int (*fast_recv)(struct sk_buff *skb);
  
- 	net_timestamp_check(!READ_ONCE(netdev_tstamp_prequeue), skb);
+ 	net_timestamp_check(!READ_ONCE(net_hotdata.tstamp_prequeue), skb);
  
-@@ -5565,6 +5574,14 @@ another_round:
+@@ -5718,6 +5727,14 @@ another_round:
  			goto out;
  	}
  

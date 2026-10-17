@@ -39,7 +39,7 @@ Signed-off-by: Murat Sezgin <quic_msezgin@quicinc.com>
 
 --- a/include/linux/if_bridge.h
 +++ b/include/linux/if_bridge.h
-@@ -69,7 +69,15 @@
+@@ -69,7 +69,15 @@ struct net_bridge;
  void brioctl_set(int (*hook)(struct net *net, unsigned int cmd,
  			     void __user *uarg));
  int br_ioctl_call(struct net *net, unsigned int cmd, void __user *uarg);
@@ -58,7 +58,7 @@ Signed-off-by: Murat Sezgin <quic_msezgin@quicinc.com>
  			       struct list_head *br_ip_list);
 --- a/net/bridge/br_fdb.c
 +++ b/net/bridge/br_fdb.c
-@@ -914,6 +914,44 @@ void br_fdb_update(struct net_bridge *br
+@@ -965,6 +965,44 @@ void br_fdb_update(struct net_bridge *br
  	}
  }
  
@@ -105,7 +105,7 @@ Signed-off-by: Murat Sezgin <quic_msezgin@quicinc.com>
  		struct netlink_callback *cb,
 --- a/net/bridge/br_if.c
 +++ b/net/bridge/br_if.c
-@@ -775,3 +775,59 @@ bool br_port_flag_is_set(const struct ne
+@@ -776,3 +776,59 @@ bool br_port_flag_is_set(const struct ne
  	return p->flags & flag;
  }
  EXPORT_SYMBOL_GPL(br_port_flag_is_set);
