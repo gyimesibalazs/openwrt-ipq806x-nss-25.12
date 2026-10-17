@@ -309,7 +309,8 @@ function device_htmode_append(config) {
 		append_vars(config, [ 'op_class' ]);
 	}
 
-	if (config.ieee80211ac && config.hw_mode == 'a') {
+	/* NSS build: also allow vht_capab on 2.4GHz for vendor QAM-256 (6GHz already clears ieee80211ac) */
+	if (config.ieee80211ac) {
 		/* VHT capab */
 		if (config.vht_oper_chwidth < 2) {
 			config.vht160 = 0;

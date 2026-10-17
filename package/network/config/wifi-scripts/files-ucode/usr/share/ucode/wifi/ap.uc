@@ -46,6 +46,9 @@ function iface_setup(config) {
 	if (config.proxy_arp)
 		set_default(config, 'na_mcast_to_ucast', true);
 
+	/* NSS build: intra-BSS forwarding is handled via the NSS redirect, keep hostapd isolation off (same as the 24.10 NSS shell scripts) */
+	config.ap_isolate = 0;
+
 	append('bssid', config.macaddr);
 	config.ssid2 = config.ssid;
 	config.wmm_enabled = 1;
