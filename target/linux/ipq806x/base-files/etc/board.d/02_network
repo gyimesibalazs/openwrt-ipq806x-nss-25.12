@@ -11,6 +11,15 @@ ipq806x_setup_interfaces()
 	local board="$1"
 
 	case "$board" in
+	linksys,e8350-v1)
+		# still DSA (no swconfig DTS in the NSS branch for this board)
+		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" "wan"
+		ucidef_set_network_device_conduit "lan1" "eth1"
+		ucidef_set_network_device_conduit "lan2" "eth1"
+		ucidef_set_network_device_conduit "lan3" "eth1"
+		ucidef_set_network_device_conduit "lan4" "eth1"
+		ucidef_set_network_device_conduit "wan" "eth0"
+		;;
 	arris,tr4400-v2)
 		ucidef_set_interfaces_lan_wan "eth1" "eth2"
 		ucidef_add_switch "switch0" \
