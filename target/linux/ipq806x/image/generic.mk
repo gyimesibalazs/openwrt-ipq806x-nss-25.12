@@ -52,7 +52,19 @@ define Device/TpSafeImage
 		tplink-safeloader sysupgrade | append-metadata
 endef
 
-define Device/ZyXELImage
+# tune addpattern for Linksys E8350-V1 fw pattern generation
+define Build/linksys-bin
+        $(STAGING_DIR_HOST)/bin/addpattern -p $(FW_DEVICE_ID) -v $(FW_VERSION) $(if $(SERIAL),-s $(SERIAL)) -i $@ -o $@.new
+        mv $@.new $@
+endef
+
+# Use Linksys fw header generator to upgrade openwrt factory image over the native Linksys WEB interface
+define Build/linksys-addfwhdr
+        -$(STAGING_DIR_HOST)/bin/linksys-addfwhdr -i $@ -o $@.new \
+       	;mv "$@.new" "$@"
+endef
+
+define Device/ZyxelImage
 	KERNEL_SUFFIX := -uImage
 	KERNEL = kernel-bin | append-dtb | uImage none | \
 		pad-to $$(KERNEL_SIZE)
@@ -547,7 +559,7 @@ endef
 TARGET_DEVICES += ubnt_unifi-ac-hd
 
 define Device/zyxel_nbg6817
-	DEVICE_VENDOR := ZyXEL
+	DEVICE_VENDOR := Zyxel
 	DEVICE_MODEL := NBG6817
 	SOC := qcom-ipq8065
 	KERNEL_SIZE := 4096k
@@ -559,6 +571,6 @@ define Device/zyxel_nbg6817
 	SUPPORTED_DEVICES += nbg6817
 	DEVICE_PACKAGES := ath10k-firmware-qca9984-ct e2fsprogs \
 		kmod-fs-ext4 losetup
-	$(call Device/ZyXELImage)
+	$(call Device/ZyxelImage)
 endef
 TARGET_DEVICES += zyxel_nbg6817
