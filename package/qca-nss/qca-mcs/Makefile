@@ -44,7 +44,7 @@ define Build/InstallDev
 	$(foreach header_file,$(QCA_MC_SNOOPING_HEADERS), $(CP) $(header_file) $(1)/usr/include/;)
 endef
 
-EXTRA_CFLAGS+=-Wno-implicit-fallthrough
+EXTRA_CFLAGS+=-Wno-implicit-fallthrough -Wno-missing-prototypes -Wno-missing-declarations
 
 QCA_MC_SNOOPING_MAKE_OPTS:= \
         $(KERNEL_MAKE_FLAGS) \

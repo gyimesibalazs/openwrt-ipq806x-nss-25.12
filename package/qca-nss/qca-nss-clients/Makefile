@@ -365,6 +365,7 @@ define KernelPackage/qca-nss-drv-igs/install
 endef
 
 EXTRA_CFLAGS+= \
+	-Wno-missing-prototypes -Wno-missing-declarations \
 	-I$(STAGING_DIR)/usr/include/qca-nss-drv \
 	-I$(STAGING_DIR)/usr/include/qca-nss-crypto \
 	-I$(STAGING_DIR)/usr/include/qca-nss-cfi \

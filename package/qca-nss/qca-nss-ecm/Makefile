@@ -187,6 +187,7 @@ define Build/InstallDev
 endef
 
 EXTRA_CFLAGS+= \
+	-Wno-missing-prototypes -Wno-missing-declarations \
 	-I$(STAGING_DIR)/usr/include/hyfibr \
 	-I$(STAGING_DIR)/usr/include/qca-mcs \
 	-I$(STAGING_DIR)/usr/include/qca-nss-drv \

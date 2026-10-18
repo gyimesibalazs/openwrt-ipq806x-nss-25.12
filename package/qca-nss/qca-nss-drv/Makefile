@@ -104,6 +104,7 @@ endif
 endef
 
 EXTRA_CFLAGS+= -I$(STAGING_DIR)/usr/include/qca-nss-gmac -I$(STAGING_DIR)/usr/include/qca-nss-dp
+EXTRA_CFLAGS+= -Wno-missing-prototypes -Wno-missing-declarations
 
 # Keeping default as ipq806x for branches that does not have subtarget framework
 ifeq ($(CONFIG_TARGET_ipq),y)

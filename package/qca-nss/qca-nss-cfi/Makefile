@@ -57,6 +57,7 @@ This package contains a NSS cfi driver for QCA chipset
 endef
 
 EXTRA_CFLAGS+= \
+	-Wno-missing-prototypes -Wno-missing-declarations \
 	-DCONFIG_NSS_DEBUG_LEVEL=4 \
 	-I$(STAGING_DIR)/usr/include/qca-nss-crypto \
 	-I$(STAGING_DIR)/usr/include/crypto \

@@ -36,6 +36,7 @@ endef
 
 EXTRA_CFLAGS+= \
 	-DCONFIG_NSS_DEBUG_LEVEL=0 \
+	-Wno-missing-prototypes -Wno-missing-declarations \
 	-I$(PKG_BUILD_DIR)/nss_hal/include \
 	-I$(PKG_BUILD_DIR)/nss_hal/$(BOARD)
 
