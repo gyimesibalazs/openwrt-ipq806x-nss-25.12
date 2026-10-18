@@ -13,8 +13,10 @@ Signed-off-by: Ken Zhu <quic_guigenz@quicinc.com>
  net/core/dev.c            | 74 +++++++++++++++++++++++++++++++++++++++
  2 files changed, 76 insertions(+)
 
---- a/include/linux/netdevice.h
-+++ b/include/linux/netdevice.h
+Index: linux-6.12.94/include/linux/netdevice.h
+===================================================================
+--- linux-6.12.94.orig/include/linux/netdevice.h
++++ linux-6.12.94/include/linux/netdevice.h
 @@ -3133,6 +3133,8 @@ static inline int dev_direct_xmit(struct
  	return ret;
  }
@@ -24,9 +26,11 @@ Signed-off-by: Ken Zhu <quic_guigenz@quicinc.com>
  int register_netdevice(struct net_device *dev);
  void unregister_netdevice_queue(struct net_device *dev, struct list_head *head);
  void unregister_netdevice_many(struct list_head *head);
---- a/net/core/dev.c
-+++ b/net/core/dev.c
-@@ -4435,6 +4435,80 @@ struct netdev_queue *netdev_core_pick_tx
+Index: linux-6.12.94/net/core/dev.c
+===================================================================
+--- linux-6.12.94.orig/net/core/dev.c
++++ linux-6.12.94/net/core/dev.c
+@@ -4435,6 +4435,79 @@ struct netdev_queue *netdev_core_pick_tx
  }
  
  /**
@@ -83,19 +87,18 @@ Signed-off-by: Ken Zhu <quic_guigenz@quicinc.com>
 +		__netif_tx_release(txq);		\
 +	}						\
 +}
-+		netdev_features_t dev_features = dev->features;
-+		FAST_HARD_TX_LOCK(dev_features, txq, cpu);
++		FAST_HARD_TX_LOCK(dev->features, txq, cpu);
 +		if (likely(!netif_xmit_stopped(txq))) {
 +			rc = netdev_start_xmit(skb, dev, txq, 0);
 +			if (unlikely(!dev_xmit_complete(rc))) {
-+				FAST_HARD_TX_UNLOCK(dev_features, txq);
++				FAST_HARD_TX_UNLOCK(dev->features, txq);
 +				goto fail;
 +			}
-+			FAST_HARD_TX_UNLOCK(dev_features, txq);
++			FAST_HARD_TX_UNLOCK(dev->features, txq);
 +			rcu_read_unlock_bh();
 +			return true;
 +		}
-+		FAST_HARD_TX_UNLOCK(dev_features, txq);
++		FAST_HARD_TX_UNLOCK(dev->features, txq);
 +	}
 +fail:
 +	rcu_read_unlock_bh();

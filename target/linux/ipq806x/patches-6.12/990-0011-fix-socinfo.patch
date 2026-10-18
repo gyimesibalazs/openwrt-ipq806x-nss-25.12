@@ -1,5 +1,7 @@
---- a/drivers/soc/qcom/socinfo.c
-+++ b/drivers/soc/qcom/socinfo.c
+Index: linux-6.12.94/drivers/soc/qcom/socinfo.c
+===================================================================
+--- linux-6.12.94.orig/drivers/soc/qcom/socinfo.c
++++ linux-6.12.94/drivers/soc/qcom/socinfo.c
 @@ -558,11 +558,13 @@ QCOM_OPEN(pmic_die_rev, qcom_show_pmic_d
  QCOM_OPEN(chip_id, qcom_show_chip_id);
  
@@ -10,7 +12,7 @@
  	struct smem_image_version *image_version = seq->private;  \
 -	if (image_version->type[0] != '\0')			  \
 -		seq_printf(seq, "%s\n", image_version->type);	  \
-+	if(!image_version && !image_version->type[0]) {           \
++	if (image_version && image_version->type[0]) {          \
 +		seq_puts(seq, image_version->type);               \
 +		seq_puts(seq, "\n");                              \
 +	}                                                         \
