@@ -54,3 +54,7 @@ CONFIG_PACKAGE_luci-proto-wireguard=y
 ## SQM QoS nss
 #CONFIG_PACKAGE_sqm-scripts-nss=y
 CONFIG_VERSION_REPO="https://downloads.openwrt.org/releases/25.12.5"
+CONFIG_IMAGEOPT=y
+CONFIG_VERSIONOPT=y
+CONFIG_VERSION_DIST="OpenWrt NSS"
+# CONFIG_VERSION_FILENAMES is not set
