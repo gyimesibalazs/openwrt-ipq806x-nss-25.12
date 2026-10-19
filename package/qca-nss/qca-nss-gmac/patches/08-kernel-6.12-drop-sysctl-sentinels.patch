@@ -1,0 +1,18 @@
+Linux 6.11 dropped ctl_table sentinels: register_sysctl() and
+register_net_sysctl() now take ARRAY_SIZE() of the table, so the old
+trailing {} entry is registered as a nameless node and the whole table is
+rejected ("procname is null"). For nss-gmac this fails the probe and no
+ethernet interface comes up.
+
+--- a/ipq806x/nss_gmac_ctrl.c
++++ b/ipq806x/nss_gmac_ctrl.c
+@@ -158,8 +158,7 @@
+ 		.maxlen         = sizeof(int),
+ 		.mode           = 0644,
+ 		.proc_handler   = nss_gmac_per_prec_stats_reset_handler
+-	},
+-	{}
++	}
+ };
+ 
+ /**
