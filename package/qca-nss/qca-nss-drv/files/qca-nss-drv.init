@@ -36,6 +36,10 @@ enable_rps() {
 		echo 8 > /proc/irq/$entry/smp_affinity
 	done
 
+	# Queue 0 of the second NSS core goes to the second CPU
+	irq_nss_rps=`grep -w nss /proc/interrupts | sed -n 2p | cut -d ':' -f 1 | tr -d ' '`
+	[ -n "$irq_nss_rps" ] && echo 2 > /proc/irq/$irq_nss_rps/smp_affinity
+
 	# Enable NSS RPS
 	sysctl -w dev.nss.rps.enable=1 >/dev/null 2>/dev/null
 
