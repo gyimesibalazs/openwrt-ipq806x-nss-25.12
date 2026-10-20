@@ -1,0 +1,18 @@
+ath10k-ct: pci: run NAPI in a kthread
+
+On ipq806x all PCIe MSIs are chained through one GIC interrupt that
+is pinned to CPU0, so the RX/TX-completion work of the radios cannot
+be moved by IRQ affinity and competes with NSS host traffic on CPU0.
+Threaded NAPI lets the scheduler (or packet steering) put that work
+on the other CPU. snoc already does the same.
+
+--- a/ath10k-6.18/pci.c
++++ b/ath10k-6.18/pci.c
+@@ -3568,6 +3568,7 @@ static void ath10k_pci_free_irq(struct a
+ void ath10k_pci_init_napi(struct ath10k *ar)
+ {
+ 	netif_napi_add(ar->napi_dev, &ar->napi, ath10k_pci_napi_poll);
++	dev_set_threaded(ar->napi_dev, true);
+ }
+
+ static int ath10k_pci_init_irq(struct ath10k *ar)
