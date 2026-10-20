@@ -5,14 +5,14 @@ CONFIG_TARGET_ipq806x_generic=y
 CONFIG_TARGET_ipq806x=y
 CONFIG_EXPERIMENTAL=y
 
-## Use ath10k instead ath10k-ct
-CONFIG_PACKAGE_ath10k-firmware-qca99x0=y
-# CONFIG_PACKAGE_ath10k-firmware-qca99x0-ct is not set
-CONFIG_PACKAGE_kmod-ath10k=y
-CONFIG_ATH10K_LEDS=y
-CONFIG_ATH10K_THERMAL=y
+## Use ath10k-ct: the only non-ct QCA99X0 firmware is the 2016 10.4.1.00030,
+## which does no TX A-MPDU aggregation (~35 Mbit/s downlink)
+CONFIG_PACKAGE_ath10k-firmware-qca99x0-ct=y
+# CONFIG_PACKAGE_ath10k-firmware-qca99x0 is not set
+CONFIG_PACKAGE_kmod-ath10k-ct=y
+CONFIG_ATH10K-CT_LEDS=y
+# CONFIG_PACKAGE_kmod-ath10k is not set
 CONFIG_PACKAGE_kmod-ramoops=y
-# CONFIG_PACKAGE_kmod-ath10k-ct is not set
 
 ## Use Openssl
 # CONFIG_PACKAGE_wpad-basic-mbedtls is not set
