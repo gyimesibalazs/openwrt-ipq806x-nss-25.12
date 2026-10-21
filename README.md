@@ -8,6 +8,13 @@ TP-Link Archer C2600.
 So far it has been tested on real hardware **only on the TP-Link Archer C2600**.
 The R7800 build compiles but has not been booted yet.
 
+> **This is the `dsa-lab` branch.** Here the C2600 runs the switch with **DSA**
+> instead of swconfig, and NSS still accelerates it. It works on the C2600 in
+> the tests below, but it is experimental. See
+> [DSA with NSS on the C2600](#dsa-with-nss-on-the-c2600-experimental). The
+> R7800 (and XR450/XR500) uses the same switch layout and is converted the same
+> way, but has not been booted.
+
 The original OpenWrt README is kept as [README.openwrt.md](README.openwrt.md).
 
 ## Where this comes from
@@ -58,7 +65,8 @@ commit, so this branch descends from OpenWrt 25.12, not from the 24.10 fork.
 - **GCC 14:** the NSS kernel patches were fixed so they build under `-Werror`.
 - **Switch:** the DTS files use swconfig instead of DSA, as in the 24.10 NSS
   branch, and the 25.12 pinctrl and PCIe changes are kept. Linksys E8350-v1 has
-  no swconfig DTS, so it stays on DSA without NSS.
+  no swconfig DTS, so it stays on DSA without NSS. On this branch the C2600 is
+  back on DSA, with NSS (see below).
 - **NSS packages:**
   - qca-nss-gmac, -drv, -clients, -ecm, -crypto, -cfi and qca-mcs were ported to
     6.12 (`.remove` returns void, `strscpy`, `no_llseek`, tracepoints, and so on);
@@ -113,6 +121,163 @@ commit, so this branch descends from OpenWrt 25.12, not from the 24.10 fork.
 5. **ECM firewall script.** With fw4 there is no `iptables`, so the iptables
    lines now run only when the binary exists.
 
+## DSA with NSS on the C2600 (experimental)
+
+### Why NSS builds stayed on swconfig
+
+Upstream OpenWrt has used DSA for the ipq806x switch (QCA8337, driver `qca8k`)
+since 23.05. The NSS builds this repository descends from all kept swconfig,
+for three reasons:
+
+1. **The QCA header.** `qca8k` marks the frames between the switch and the
+   CPU with a 2-byte proprietary header in place of the EtherType. The NSS
+   firmware is closed and does not understand it, so nothing can be
+   accelerated.
+2. **ECM knows nothing about DSA.** It cannot tell that `lan1` lives on
+   `eth1`. Under swconfig the same port is `eth1.1`, a VLAN device that ECM
+   handles.
+3. **The NSS drivers were only ever run without DSA.** Several of their bugs
+   only show up when a DSA switch sits behind them (see below).
+
+### The approach: make DSA look like swconfig to NSS
+
+NSS was not taught about DSA. The switch and DSA were set up so that NSS sees
+what it saw under swconfig: plain 802.1Q-tagged frames on the GMACs.
+
+- **A VLAN-based tagger.** The kernel already has a pattern for this
+  (`tag_8021q`, used by sja1105 and vsc73xx). A new `qca-8021q` tagger
+  replaces the QCA header with VLAN tags. Every standalone port gets its own
+  VLAN from the reserved range 3072–4095, and each bridge gets one shared VLAN.
+  On the C2600 that is VLAN 3088 for `br-lan` on `eth1` and VLAN 3077 for `wan`
+  on `eth0`. To NSS this is the same as swconfig's `eth1.1` and `eth0.2`.
+- **ECM** presents a DSA user port as a VLAN of its conduit, so it builds the
+  same NSS rules as for `eth1.1`.
+
+### What it took on the hardware
+
+None of this is documented clearly. It was found on the device from kernel
+logs, register dumps and packet captures.
+
+**QCA8337 switch** ([kernel patch 713](target/linux/generic/pending-6.12/713-net-dsa-qca8k-add-tag_8021q-tagging.patch)):
+
+- **Egress mode.**
+  - Problem: the VLAN table decides the egress tagging only in the "untouched"
+    egress mode, which is set in two registers (`PORT_VLAN_CTRL1` and
+    `0x0c80`). In the default "unmodified" mode a frame leaves as it came in,
+    so the CPU got every frame untagged. swconfig never saw this because it
+    resets the switch; `qca8k` does not.
+  - Fix: both registers are set to "untouched".
+- **Flooding.**
+  - Problem: with the QCA header the CPU picks the egress port of every frame,
+    so upstream floods broadcast and unknown traffic to the CPU ports only.
+    With VLANs the switch must forward the CPU's frames itself, and without
+    flooding to every port not even a DHCP discover left the router.
+  - Fix: the switch floods to every port.
+- **Bridge number.**
+  - Problem: `qca8k` did not set `max_num_bridges`, so the bridge VLAN carried
+    no bridge number and the tagger could not decode it.
+  - Fix: `max_num_bridges` is set.
+- **Two CPU ports.**
+  - Problem: in VLAN (secure) mode the switch ignores the port masks, and DSA
+    puts every tag_8021q VLAN on every CPU port. Each frame reached both GMACs:
+    WAN pings came back twice, and LAN frames arrived on the wrong conduit.
+  - Fix: a VLAN is kept only on the CPU port its ports use, and moves with
+    them on a conduit change.
+- **VLAN table entries.**
+  - Problem: in the VLAN table, egress mode 0 means "member, unmodified", so a
+    new all-zero entry made every port a member.
+  - Fix: new entries start with no members.
+
+**NSS drivers:**
+
+- **The netdev parent**
+  ([nss-gmac patch 10](package/qca-nss/qca-nss-gmac/patches/10-set-netdev-parent.patch)).
+  - Problem: nss-gmac set the netdev parent to the MDIO bus device, a
+    workaround for an old PHY attach crash. DSA looks up its conduit through
+    the GMAC's DT node, never found it, and the switch probe was deferred
+    forever.
+  - Fix: the parent is the GMAC platform device.
+- **`of_get_phy_mode()`.**
+  - Problem: an old NSS kernel hack made it return the mode index instead of
+    0. DSA took that for an error ("CPU port lacks the required phy-mode"),
+    and the switch probe failed with `-EINVAL`. Current nss-gmac does not need
+    the hack.
+  - Fix: the hack was dropped.
+- **MTU**
+  ([nss-gmac patch 09](package/qca-nss/qca-nss-gmac/patches/09-set-max-mtu.patch)).
+  - Problem: nss-gmac left `max_mtu` at 1500, so DSA could not make room for
+    the 4-byte tag on the conduit.
+  - Fix: `max_mtu` is raised to the driver's jumbo limit.
+- **Device tree.**
+  - Problem: the NSS device tree made nss-gmac attach to MDIO addresses 4 and
+    0. These are the switch's internal PHYs of the `wan` and `lan4` ports,
+    which DSA attaches to those user ports.
+  - Fix: the GMACs are conduits without a PHY (`phy-mdio-addr = <32>`).
+
+**ECM** ([patch 402](package/qca-nss/qca-nss-ecm/patches/402-dsa-tag_8021q-user-ports-as-vlans.patch)):
+treats a DSA user port as a VLAN of its conduit. A VLAN upper of a standalone
+port, such as `wan.35`, reaches the conduit with just its own tag.
+
+### Method
+
+The work was done in this order, so that each layer was proven before the next
+one was added:
+
+1. **Vanilla first.** The tagger was brought up on plain OpenWrt 25.12.6 with
+   the stock `stmmac` Ethernet driver and no NSS. This separated switch and
+   tagger bugs from NSS bugs. All five switch problems above were found and
+   fixed there.
+2. **Then NSS.** The same kernel patch went into the NSS build. The remaining
+   problems were then in the NSS drivers.
+3. **Diagnostics that survive a dead network.** A diagnostic image contained:
+   - a WiFi access point on its own network, so the router stayed reachable
+     with the wired side down;
+   - a boot script that mounts a USB stick early and streams `/dev/kmsg` to
+     it with synchronous writes, plus the previous boot's ramoops/pstore;
+   - `tcpdump` captures of both GMACs, written to the stick;
+   - during the switch work, temporary kernel logging of every VLAN-table
+     write and a dump of the VLAN-related switch registers.
+
+   The router was flashed over TFTP recovery, booted, and the stick was then
+   read on a PC. Every fix above came from one of these logs, not from
+   guessing. The diagnostic overlay is not part of the repository.
+
+### Results (C2600, same setup as the swconfig tests above)
+
+| Test | swconfig + NSS | DSA + NSS |
+|---|---|---|
+| NAT, 1 stream, up / down | 938–941 / 841–844 Mbit/s | 871 / 839 Mbit/s |
+| NAT, 4 streams, up / down | – | 921 / 864 Mbit/s |
+| NAT, bidirectional 4+4 | 938 / 916 Mbit/s | 916 / 908 Mbit/s |
+| Router CPU during NAT | ~0–5% | 1–2% |
+| WiFi 5 GHz, 1 stream, down / up | 569–582 / 531–621 Mbit/s | 514–583 / 463–565 Mbit/s |
+| Ping over WiFi during download | 21 ms | 6–10 ms |
+
+For comparison, the same DSA tagger without NSS (vanilla, CPU routing) reached
+742 / 528 Mbit/s with the CPU at about 90%.
+
+### Known issues and open points
+
+- **Rare damaged frames.** Under bidirectional wired load about one frame in
+  200,000 reaches the host damaged: always 1298 bytes, which looks like a
+  1522-byte frame without its first 224 bytes. The tagger drops it with a
+  "Couldn't decode source port" warning. It is not known yet whether swconfig
+  had the same thing silently.
+- **Not tested yet:**
+  - VLAN-aware bridges and VLAN uppers such as `wan.35` (the code is there);
+  - long load runs;
+  - reboot cycles;
+  - upgrading from an official 25.12 image.
+- **No switch register access over Ethernet.** It needs the QCA header, so the
+  switch is managed over MDIO only.
+- **Other boards.** The Netgear R7800, XR450 and XR500 share the C2600's switch
+  layout: CPU port 0 on `eth0` (RGMII), CPU port 6 on `eth1` (SGMII), and
+  ports 1–5 as `lan4`–`lan1` and `wan`. They are converted the same way
+  (nighthawk DTS, NSS DT patch, network, LEDs and config conversion), but
+  none of them has been booted with it yet. Other ipq806x boards with a
+  QCA8337 should work alike, given their port map in `05_swconfig-to-dsa`
+  and the DTS changes.
+
 ## Building
 
 Build on a Debian or Ubuntu host with the
@@ -135,8 +300,15 @@ The images are written to `bin/targets/ipq806x/generic/openwrt-nss-ipq806x-gener
 ## Installing on the TP-Link Archer C2600
 
 - **From OpenWrt:** use `sysupgrade` with the `…-squashfs-sysupgrade.bin` image.
-  When coming from an official 25.12 image, which uses DSA, use
-  `sysupgrade -n`: the DSA network config does not work with swconfig.
+  - This branch uses DSA like the official 25.12 images, with the same port
+    names (`lan1`–`lan4`, `wan`). Coming from an official image should keep the
+    config, but this has not been tested.
+  - Coming from a swconfig NSS image (the release branch), the config is
+    converted on the first boot: `eth1.1` becomes `lan1`–`lan4` and `eth0.2`
+    becomes `wan`. Setups with tagged switch ports get the default config
+    instead; the old one is kept as `/etc/config/network.swconfig`. The image
+    reports compat version 1.0, so `sysupgrade` may need
+    `uci set system.@system[0].compat_version=1.0` first.
 - **From the stock firmware, or for recovery:**
   1. Rename `…-squashfs-factory.bin` to `ArcherC2600_1.0_tp_recovery.bin` and
      serve it from a TFTP server at `192.168.0.66`.
