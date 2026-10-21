@@ -1,0 +1,134 @@
+#!/bin/sh
+#
+# Boards that moved from swconfig to DSA (qca-8021q tagging) keep their
+# network config across sysupgrade. Convert a swconfig config to the DSA
+# ports: every switch VLAN device (eth1.1, eth0.2, ...) is replaced by
+# the DSA ports that were untagged members of that VLAN. Interfaces,
+# addresses and bridge options are kept.
+#
+# Setups with tagged user ports (trunks) cannot be converted this way.
+# Their config is moved to network.swconfig and the defaults are
+# generated instead.
+
+. /lib/functions.sh
+
+CONF="${CONF:-/etc/config/network}"
+
+# switch port -> DSA port, and CPU port -> conduit
+case "${BOARD:-$(board_name)}" in
+tplink,c2600)
+	ports="1:lan4 2:lan3 3:lan2 4:lan1 5:wan"
+	cpus="0:eth0 6:eth1"
+	;;
+*)
+	exit 0
+	;;
+esac
+
+grep -q "^config switch_vlan" "$CONF" || exit 0
+
+convert() {
+	awk -v ports="$ports" -v cpus="$cpus" '
+	function q(s) { gsub(/^'\''|'\''$/, "", s); return s }
+
+	BEGIN {
+		n = split(ports, a, " ")
+		for (i = 1; i <= n; i++) { split(a[i], b, ":"); dsa[b[1]] = b[2] }
+		n = split(cpus, a, " ")
+		for (i = 1; i <= n; i++) { split(a[i], b, ":"); cpu[b[1]] = b[2] }
+	}
+
+	# first pass: the switch VLANs
+	NR == FNR {
+		if ($1 == "config") { sec = $2; vid = ""; vports = "" }
+		if (sec == "switch_vlan" && $1 == "option") {
+			if ($2 == "vlan" && vid == "") vid = q($3)
+			if ($2 == "vid") vid = q($3)
+			if ($2 == "ports") { $1 = $2 = ""; vports = q(substr($0, 3)) }
+		}
+		if (sec == "switch_vlan" && vid != "" && vports != "") {
+			dev = ""; members = ""
+			n = split(vports, p, " ")
+			for (i = 1; i <= n; i++) {
+				port = p[i]; tagged = sub(/t$/, "", port)
+				if (port in cpu) {
+					dev = cpu[port] (tagged ? "." vid : "")
+				} else if (port in dsa) {
+					if (tagged || (port in used)) exit 2
+					used[port] = 1
+					members = members " " dsa[port]
+				}
+			}
+			if (dev != "") map[dev] = substr(members, 2)
+			vid = ""; vports = ""
+		}
+		next
+	}
+
+	# second pass: rewrite the config
+	$1 == "config" { skip = ($2 ~ /^switch/) }
+	skip { next }
+
+	$1 == "list" && $2 == "ports" && (q($3) in map) {
+		n = split(map[q($3)], m, " ")
+		for (i = 1; i <= n; i++) print "\tlist ports '\''" m[i] "'\''"
+		next
+	}
+
+	($1 == "option" || $1 == "list") && ($2 == "device" || $2 == "ifname" || $2 == "name") && (q($3) in map) {
+		if (split(map[q($3)], m, " ") != 1) exit 2
+		print "\t" $1 " " $2 " '\''" m[1] "'\''"
+		next
+	}
+
+	{ print }
+	' "$CONF" "$CONF"
+}
+
+# The swconfig LEDs follow switch0 port masks: replace them with the
+# board's DSA netdev LEDs
+migrate_leds() {
+	local cfg key keys name sysfs type device mode
+
+	for cfg in $(uci -q show system | sed -n "s/^system\.\([^.]*\)\.trigger='switch0'$/\1/p"); do
+		uci -q delete "system.$cfg"
+	done
+
+	. /usr/share/libubox/jshn.sh
+	json_load_file /etc/board.json
+	json_select led || return 0
+	json_get_keys keys
+	for key in $keys; do
+		json_select "$key"
+		json_get_vars name sysfs type device mode
+		json_select ..
+
+		[ "$type" = "netdev" ] || continue
+		uci -q get "system.led_$key" >/dev/null && continue
+
+		uci -q batch <<-EOF
+			set system.led_$key='led'
+			set system.led_$key.name='$name'
+			set system.led_$key.sysfs='$sysfs'
+			set system.led_$key.trigger='netdev'
+			set system.led_$key.mode='$mode'
+			set system.led_$key.dev='$device'
+		EOF
+	done
+	uci commit system
+}
+
+[ -n "$BOARD" ] || migrate_leds
+
+cp "$CONF" "$CONF.swconfig"
+
+if convert > "$CONF.dsa"; then
+	mv "$CONF.dsa" "$CONF"
+	logger -t swconfig-to-dsa "network config converted to DSA ports, old config in $CONF.swconfig"
+else
+	rm -f "$CONF.dsa" "$CONF"
+	/bin/config_generate
+	logger -t swconfig-to-dsa "switch setup with tagged ports cannot be converted, defaults generated, old config in $CONF.swconfig"
+fi
+
+exit 0
