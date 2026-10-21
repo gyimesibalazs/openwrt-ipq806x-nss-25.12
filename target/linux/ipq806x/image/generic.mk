@@ -557,7 +557,7 @@ define Device/tplink_c2600
 	BOARD_NAME := c2600
 	SUPPORTED_DEVICES += c2600
 	TPLINK_BOARD_ID := C2600
-	DEVICE_PACKAGES := ath10k-firmware-qca99x0-ct kmod-ramoops
+	DEVICE_PACKAGES := -swconfig ath10k-firmware-qca99x0-ct kmod-ramoops
 endef
 TARGET_DEVICES += tplink_c2600
 
