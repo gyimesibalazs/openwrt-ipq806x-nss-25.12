@@ -1,0 +1,25 @@
+From: Gyimesi Balázs <gyimesi.balazs@gmail.com>
+Subject: nss-gmac: use the GMAC as the parent device of the netdev
+
+The netdev parent is set to the MDIO bus device, a workaround for a
+phy_attach_direct() panic without a parent. The netdev is then not tied
+to the DT node of its GMAC: a DSA switch looks up its conduit with
+of_find_net_device_by_node(), never finds it, and its probe is deferred
+forever. Use the GMAC platform device as the parent.
+
+--- a/ipq806x/nss_gmac_ctrl.c
++++ b/ipq806x/nss_gmac_ctrl.c
+@@ -1416,8 +1416,11 @@
+ 		}
+ 	}
+ 
+-	/* workaround for tplink,onhub eth0 phy_attach_direct panic with poll enabled */
+-	SET_NETDEV_DEV(netdev, gmacdev->miibus->parent); /* (netdev, &pdev->dev) ? */
++	/* phy_attach_direct() needs a parent device (it used to panic on the
++	 * tplink,onhub), and a DSA switch finds its conduit through the DT
++	 * node of the parent: use the GMAC platform device
++	 */
++	SET_NETDEV_DEV(netdev, &pdev->dev);
+ 
+ 	/*
+ 	 * Connect PHY
