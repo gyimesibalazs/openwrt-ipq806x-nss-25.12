@@ -1,0 +1,21 @@
+From: Gyimesi Balázs <gyimesi.balazs@gmail.com>
+Subject: nss-gmac: set max_mtu
+
+The netdev max_mtu stays at the ether_setup() default of 1500, so the
+jumbo support of ndo_change_mtu cannot be used, and a DSA switch behind
+the GMAC cannot raise the conduit MTU for its tag. Allow up to the
+driver's jumbo limit.
+
+--- a/ipq806x/nss_gmac_ctrl.c
++++ b/ipq806x/nss_gmac_ctrl.c
+@@ -1383,6 +1383,10 @@
+ 
+ 	netdev->watchdog_timeo = 5 * HZ;
+ 	netdev->netdev_ops = &nss_gmac_netdev_ops;
++	/* ndo_change_mtu handles jumbo frames; a DSA switch behind the
++	 * GMAC also needs room for its tag on top of a full frame
++	 */
++	netdev->max_mtu = NSS_GMAC_JUMBO_MTU;
+ 	nss_gmac_ethtool_register(netdev);
+ 
+ 	/*
