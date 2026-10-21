@@ -153,6 +153,24 @@ what it saw under swconfig: plain 802.1Q-tagged frames on the GMACs.
 - **ECM** presents a DSA user port as a VLAN of its conduit, so it builds the
   same NSS rules as for `eth1.1`.
 
+### VLAN limits
+
+- **VLAN IDs 1–3071** are available for user VLANs. The tagger uses
+  3072–4095, and the driver refuses them for anything else.
+- **Count.** The driver sets no limit of its own. If the switch reports its
+  VLAN table full, adding the VLAN fails with an error. The table size of the
+  QCA8337 has not been checked. The tagger itself uses one VLAN per port
+  (5 on the C2600) and one per bridge.
+- **One standalone port per VLAN ID.** A VLAN upper of a standalone port, such
+  as `wan.35`, reaches the CPU with just its own tag, and the tagger finds the
+  port from the VLAN ID. The same ID therefore cannot be used on two standalone
+  ports. Ports in one VLAN-aware bridge can share IDs.
+- **Up to 7 offloaded bridges.** The bridge number is encoded in 3 bits of the
+  bridge VLAN.
+- **NSS acceleration.** VLAN uppers of standalone ports are accelerated. Traffic
+  through ports of a VLAN-aware bridge is not, because there the VLAN depends
+  on the flow. Neither case has been tested on hardware yet.
+
 ### What it took on the hardware
 
 None of this is documented clearly. It was found on the device from kernel
