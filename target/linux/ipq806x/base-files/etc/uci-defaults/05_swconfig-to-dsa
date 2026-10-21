@@ -16,6 +16,9 @@ CONF="${CONF:-/etc/config/network}"
 
 # switch port -> DSA port, and CPU port -> conduit
 case "${BOARD:-$(board_name)}" in
+netgear,r7800|\
+netgear,xr450|\
+netgear,xr500|\
 tplink,c2600)
 	ports="1:lan4 2:lan3 3:lan2 4:lan1 5:wan"
 	cpus="0:eth0 6:eth1"

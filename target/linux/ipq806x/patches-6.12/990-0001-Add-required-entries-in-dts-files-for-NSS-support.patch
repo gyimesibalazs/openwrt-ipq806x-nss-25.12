@@ -647,7 +647,7 @@
  	qcom,phy_mdio_addr = <4>;
  	qcom,poll_required = <0>;
  	qcom,rgmii_delay = <1>;
-+	qcom,phy-mdio-addr = <4>;
++	qcom,phy-mdio-addr = <32>;
 +	qcom,poll-required = <0>;
 +	qcom,rgmii-delay = <1>;
  	qcom,phy_mii_type = <0>;
@@ -671,7 +671,7 @@
  	qcom,phy_mdio_addr = <0>;	/* none */
  	qcom,poll_required = <0>;	/* no polling */
  	qcom,rgmii_delay = <0>;
-+	qcom,phy-mdio-addr = <0>;
++	qcom,phy-mdio-addr = <32>;
 +	qcom,poll-required = <0>;
 +	qcom,rgmii-delay = <0>;
  	qcom,phy_mii_type = <1>;

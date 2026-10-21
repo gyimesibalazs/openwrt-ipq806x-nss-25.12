@@ -12,9 +12,12 @@ ipq806x_setup_interfaces()
 
 	case "$board" in
 	linksys,e8350-v1 |\
+	netgear,r7800 |\
+	netgear,xr450 |\
+	netgear,xr500 |\
 	tplink,c2600)
-		# DSA: e8350-v1 has no swconfig DTS in the NSS branch, the C2600
-		# is the qca-8021q (dsa-lab) test board
+		# DSA: e8350-v1 has no swconfig DTS in the NSS branch, the
+		# nighthawk boards and the C2600 use qca-8021q tagging
 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" "wan"
 		ucidef_set_network_device_conduit "lan1" "eth1"
 		ucidef_set_network_device_conduit "lan2" "eth1"
@@ -65,9 +68,6 @@ ipq806x_setup_interfaces()
 		ucidef_add_switch "switch0" \
 			"2:lan" "3:lan" "4:lan" "5:lan" "0@eth1" "1:wan" "6@eth0"
 		;;
-	netgear,r7800 |\
-	netgear,xr450 |\
-	netgear,xr500 |\
 	tplink,vr2600v)
 		ucidef_add_switch "switch0" \
 			"1:lan:4" "2:lan:3" "3:lan:2" "4:lan:1" "6@eth1" "5:wan" "0@eth0"

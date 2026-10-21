@@ -424,7 +424,7 @@ define Device/netgear_r7800
 	PAGESIZE := 2048
 	BOARD_NAME := r7800
 	SUPPORTED_DEVICES += r7800
-	DEVICE_PACKAGES := ath10k-firmware-qca9984-ct kmod-ramoops
+	DEVICE_PACKAGES := -swconfig ath10k-firmware-qca9984-ct kmod-ramoops
 endef
 TARGET_DEVICES += netgear_r7800
 
@@ -438,7 +438,7 @@ define Device/netgear_xr450
 	NETGEAR_HW_ID := 29764958+0+256+512+4x4+4x4+cascade
 	BLOCKSIZE := 128k
 	PAGESIZE := 2048
-	DEVICE_PACKAGES := ath10k-firmware-qca9984-ct kmod-ramoops
+	DEVICE_PACKAGES := -swconfig ath10k-firmware-qca9984-ct kmod-ramoops
 endef
 TARGET_DEVICES += netgear_xr450
 
@@ -452,7 +452,7 @@ define Device/netgear_xr500
 	NETGEAR_HW_ID := 29764958+0+256+512+4x4+4x4+cascade
 	BLOCKSIZE := 128k
 	PAGESIZE := 2048
-	DEVICE_PACKAGES := ath10k-firmware-qca9984-ct kmod-ramoops
+	DEVICE_PACKAGES := -swconfig ath10k-firmware-qca9984-ct kmod-ramoops
 endef
 TARGET_DEVICES += netgear_xr500
 
