@@ -296,6 +296,38 @@ For comparison, the same DSA tagger without NSS (vanilla, CPU routing) reached
   QCA8337 should work alike, given their port map in `05_swconfig-to-dsa`
   and the DTS changes.
 
+## SQM with NSS
+
+The images include `luci-app-sqm` and the `nss-rk.qos` script from
+[rickkdotnet/sqm-scripts-nss](https://github.com/rickkdotnet/sqm-scripts-nss).
+It shapes with the NSS qdiscs (`nsstbl` and `nssfq_codel`), so the shaped
+traffic stays on the NSS cores. Upload is shaped on the interface itself,
+download on `nssifb`.
+
+### Setting it up in LuCI (Network → SQM QoS)
+
+- **Interface:** `eth0`. Do not use `wan`: `nss-ifb` only works on the `eth`
+  devices. On the C2600 and the R7800 `eth0` carries only the WAN traffic.
+- **Speeds:** download and upload at about 90–95% of the line speed.
+- **Queue discipline tab:** `fq_codel` as the queue discipline and
+  `nss-rk.qos` as the script.
+
+ECN, DSCP classification and link layer adaptation are not supported by the
+script.
+
+### Test (C2600, DSA, shaped to 400 Mbit/s each way, 4 TCP streams)
+
+| | No SQM | SQM 400/400 |
+|---|---|---|
+| Upload | 921 Mbit/s | 365 Mbit/s |
+| Download | 832 Mbit/s | 365 Mbit/s |
+| Router CPU | 0% | 0–1% |
+| Ping during load | 1–2 ms | 1–3 ms |
+
+The shaper holds the set rate with no CPU load, and ECM keeps the flows
+accelerated. In this test setup the line itself is never the bottleneck, so
+the latency benefit on a slower uplink has not been measured.
+
 ## Building
 
 Build on a Debian or Ubuntu host with the
