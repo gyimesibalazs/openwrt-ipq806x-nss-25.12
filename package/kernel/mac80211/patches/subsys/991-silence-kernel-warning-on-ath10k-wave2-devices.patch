@@ -1,0 +1,22 @@
+--- a/net/mac80211/main.c
++++ b/net/mac80211/main.c
+@@ -270,7 +270,7 @@ void ieee80211_hw_conf_init(struct ieee8
+ 						       ctx ? &ctx->conf : NULL);
+ 	}
+ 
+-	WARN_ON(drv_config(local, -1, changed));
++	drv_config(local, -1, changed);
+ }
+ 
+ int ieee80211_emulate_add_chanctx(struct ieee80211_hw *hw,
+--- a/net/mac80211/rx.c
++++ b/net/mac80211/rx.c
+@@ -2655,7 +2655,7 @@ static void netif_rx_nss(struct ieee8021
+ 	skb_push(skb, ETH_HLEN);
+ 	ret = nss_virt_if_tx_buf(sdata->nssctx, skb);
+ 	if (ret) {
+-		if (net_ratelimit()) {
++		if (net_ratelimit() && ret != NSS_TX_FAILURE_TOO_SHORT) {
+ 			sdata_err(sdata, "NSS TX failed with error: %s\n",
+ 				  nss_tx_status_str(ret));
+ 		}

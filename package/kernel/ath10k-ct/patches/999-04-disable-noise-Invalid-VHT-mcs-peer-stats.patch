@@ -1,0 +1,10 @@
+--- a/ath10k-7.2/htt_rx.c
++++ b/ath10k-7.2/htt_rx.c
+@@ -4106,7 +4106,6 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
+ 	if (txrate.flags == WMI_RATE_PREAMBLE_VHT && txrate.mcs > 9) {
+ 		static bool done_once = 0;
+ 		if (!done_once) {
+-			ath10k_warn(ar, "Invalid VHT mcs %hhd peer stats",  txrate.mcs);
+ 			done_once = true;
+ 		}
+ 		else {

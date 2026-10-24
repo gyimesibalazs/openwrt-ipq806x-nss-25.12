@@ -1,0 +1,28 @@
+--- a/ath10k-7.2/htt_rx.c
++++ b/ath10k-7.2/htt_rx.c
+@@ -3155,7 +3155,6 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
+ 
+ 			/* workaround for possibly firmware bug */
+ 			if (unlikely(tx_done.tx_rate_code == ATH10K_CT_TX_BEACON_INVALID_RATE_CODE)) {
+-				dev_warn_once(ar->dev, "htt tx ct: fixing invalid VHT TX rate code 0xff\n");
+ 				tx_done.tx_rate_code = 0;
+ 			}
+ 
+@@ -3249,7 +3248,6 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
+ 
+ 			/* workaround for possibly firmware bug */
+ 			if (unlikely(tx_done.tx_rate_code == ATH10K_CT_TX_BEACON_INVALID_RATE_CODE)) {
+-				dev_warn_once(ar->dev, "htt tx: fixing invalid VHT TX rate code 0xff\n");
+ 				tx_done.tx_rate_code = 0;
+ 			}
+ 
+--- a/ath10k-7.2/wmi.c
++++ b/ath10k-7.2/wmi.c
+@@ -6394,7 +6394,6 @@ static void ath10k_wmi_event_beacon_tx(struct ath10k *ar, struct sk_buff *skb)
+ 
+ 	/* workaround for possibly firmware bug */
+ 	if (unlikely(ev->tx_rate_code == ATH10K_CT_TX_BEACON_INVALID_RATE_CODE)) {
+-		dev_warn_once(ar->dev, "wmi: fixing invalid VHT TX rate code 0xff\n");
+ 		ev->tx_rate_code = 0;
+ 	}
+ 
