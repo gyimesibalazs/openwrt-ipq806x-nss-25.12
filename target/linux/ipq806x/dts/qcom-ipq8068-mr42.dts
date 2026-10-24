@@ -55,6 +55,7 @@
 	status = "okay";
 
 	qcom,id = <3>;
+	mdiobus = <&mdio0>;
 
 	phy-mode = "sgmii";
 	phy-handle = <&phy2>;

@@ -262,6 +262,7 @@
 &gmac1 {
 	status = "okay";
 
+	mdiobus = <&mdio0>;
 	phy-handle = <&phy5>;
 	phy-mode = "sgmii";
 	qcom,id = <1>;
@@ -273,6 +274,7 @@
 &gmac2 {
 	status = "okay";
 
+	mdiobus = <&mdio0>;
 	phy-handle = <&phy4>;
 	phy-mode = "sgmii";
 	qcom,id = <2>;

@@ -326,6 +326,7 @@
 	pinctrl-0 = <&rgmii2_pins>;
 	pinctrl-names = "default";
 
+	mdiobus = <&mdio0>;
 	phy-handle = <&phy1>;
 	phy-mode = "rgmii-id";
 };
@@ -338,6 +339,7 @@
 	pinctrl-0 = <&rgmii0_pins>;
 	pinctrl-names = "default";
 
+	mdiobus = <&mdio0>;
 	phy-handle = <&phy0>;
 	phy-mode = "rgmii-id";
 };
