@@ -1,0 +1,151 @@
+Index: qca-nss-gmac-2023.06.01~17176794/ipq806x/nss_gmac_dev.c
+===================================================================
+--- qca-nss-gmac-2023.06.01~17176794.orig/ipq806x/nss_gmac_dev.c
++++ qca-nss-gmac-2023.06.01~17176794/ipq806x/nss_gmac_dev.c
+@@ -424,7 +424,7 @@ void nss_gmac_twokpe_frame_disable(struc
+  * @param[in] pointer to nss_gmac_dev.
+  * @return void.
+  */
+-void nss_gmac_disable_crs(struct nss_gmac_dev *gmacdev)
++static void nss_gmac_disable_crs(struct nss_gmac_dev *gmacdev)
+ {
+ 	nss_gmac_set_reg_bits(gmacdev->mac_base,
+ 			      gmac_config, gmac_disable_crs);
+@@ -437,7 +437,7 @@ void nss_gmac_disable_crs(struct nss_gma
+  * @param[in] pointer to nss_gmac_dev.
+  * @return void.
+  */
+-void nss_gmac_enable_crs(struct nss_gmac_dev *gmacdev)
++static void nss_gmac_enable_crs(struct nss_gmac_dev *gmacdev)
+ {
+ 	nss_gmac_clear_reg_bits(gmacdev->mac_base,
+ 			      gmac_config, gmac_disable_crs);
+@@ -1043,7 +1043,7 @@ void nss_gmac_flush_tx_fifo(struct nss_g
+  * @param[in] pointer to nss_gmac_dev.
+  * @return void.
+  */
+-void nss_gmac_config_flow_control(struct nss_gmac_dev *gmacdev)
++static void nss_gmac_config_flow_control(struct nss_gmac_dev *gmacdev)
+ {
+ 	uint16_t phyreg;
+ 
+@@ -1126,7 +1126,7 @@ void nss_gmac_ipc_offload_init(struct ns
+  * @param[in] pointer to nss_gmac_dev.
+  * @return void
+  */
+-void nss_gmac_mmc_stats_cor_enable(struct nss_gmac_dev *gmacdev)
++static void nss_gmac_mmc_stats_cor_enable(struct nss_gmac_dev *gmacdev)
+ {
+ 	nss_gmac_set_reg_bits(gmacdev->mac_base, gmac_mmc_cntrl, gmac_mmc_cor);
+ }
+Index: qca-nss-gmac-2023.06.01~17176794/ipq806x/include/nss_gmac_dev.h
+===================================================================
+--- qca-nss-gmac-2023.06.01~17176794.orig/ipq806x/include/nss_gmac_dev.h
++++ qca-nss-gmac-2023.06.01~17176794/ipq806x/include/nss_gmac_dev.h
+@@ -2146,10 +2146,10 @@ void nss_gmac_disable_mmc_rx_interrupt(s
+ void nss_gmac_disable_mmc_ipc_rx_interrupt(struct nss_gmac_dev *gmacdev,
+ 					   uint32_t mask);
+ /* Sysctl handler APIs */
+-int nss_gmac_per_prec_stats_enable_handler(struct ctl_table *table, int write,
++int nss_gmac_per_prec_stats_enable_handler(const struct ctl_table *table, int write,
+ 					   void __user *buffer, size_t *lenp,
+ 					   loff_t *ppos);
+-int nss_gmac_per_prec_stats_reset_handler(struct ctl_table *table, int write,
++int nss_gmac_per_prec_stats_reset_handler(const struct ctl_table *table, int write,
+ 					   void __user *buffer, size_t *lenp,
+ 					   loff_t *ppos);
+ 
+Index: qca-nss-gmac-2023.06.01~17176794/ipq806x/nss_gmac_ctrl.c
+===================================================================
+--- qca-nss-gmac-2023.06.01~17176794.orig/ipq806x/nss_gmac_ctrl.c
++++ qca-nss-gmac-2023.06.01~17176794/ipq806x/nss_gmac_ctrl.c
+@@ -323,7 +323,7 @@ void nss_gmac_tx_rx_desc_init(struct nss
+  * @param[in] pointer to net_device structure.
+  * @param[in] pointer to net_device_stats64 structure.
+  */
+-void nss_gmac_get_stats64(struct net_device *netdev,
++static void nss_gmac_get_stats64(struct net_device *netdev,
+ 						struct rtnl_link_stats64 *stats)
+ {
+ 	struct nss_gmac_dev *gmacdev = (struct nss_gmac_dev *)netdev_priv(netdev);
+@@ -1574,13 +1574,11 @@ nss_gmac_attach_fail:
+  * @param[in] pointer to struct platform_device
+  * @return Returns 0 on success and Error code on failure.
+  */
+-static int nss_gmac_remove(struct platform_device *pdev)
++static void nss_gmac_remove(struct platform_device *pdev)
+ {
+ 	/*
+ 	 * All remove has been done in nss_gmac_exit_network_interfaces
+-	 * Just return success here
+ 	 */
+-	return 0;
+ }
+ 
+ static struct of_device_id nss_gmac_dt_ids[] = {
+@@ -1641,7 +1639,7 @@ link_state_wq_fail:
+  * @brief De-register network interfaces.
+  * @return void
+  */
+-void nss_gmac_exit_network_interfaces(void)
++static void nss_gmac_exit_network_interfaces(void)
+ {
+ 	uint32_t i;
+ 	struct nss_gmac_dev *gmacdev;
+@@ -1686,7 +1684,7 @@ void __exit nss_gmac_deregister_driver(v
+ /**
+  * @brief Module Init
+  */
+-int __init nss_gmac_host_interface_init(void)
++static int __init nss_gmac_host_interface_init(void)
+ {
+ 	pr_info("**********************************************************\n");
+ 	pr_info("* Driver    :%s\n", nss_gmac_driver_string);
+@@ -1716,7 +1714,7 @@ int __init nss_gmac_host_interface_init(
+ /**
+  * @brief Module Exit
+  */
+-void __exit nss_gmac_host_interface_exit(void)
++static void __exit nss_gmac_host_interface_exit(void)
+ {
+ 	nss_gmac_deregister_driver();
+ }
+Index: qca-nss-gmac-2023.06.01~17176794/ipq806x/nss_gmac_sysctl.c
+===================================================================
+--- qca-nss-gmac-2023.06.01~17176794.orig/ipq806x/nss_gmac_sysctl.c
++++ qca-nss-gmac-2023.06.01~17176794/ipq806x/nss_gmac_sysctl.c
+@@ -26,7 +26,7 @@
+ /* nss_gmac_per_prec_stats_enable_handler()
+  *	Enable/Disable per-precedence statistics
+  */
+-int nss_gmac_per_prec_stats_enable_handler(struct ctl_table *table, int write,
++int nss_gmac_per_prec_stats_enable_handler(const struct ctl_table *table, int write,
+ 					   void __user *buffer, size_t *lenp,
+ 					   loff_t *ppos)
+ {
+@@ -58,7 +58,7 @@ int nss_gmac_per_prec_stats_enable_handl
+ /* nss_gmac_per_prec_stats_reset_handler()
+  *	Reset per-precedence statistics
+  */
+-int nss_gmac_per_prec_stats_reset_handler(struct ctl_table *table, int write,
++int nss_gmac_per_prec_stats_reset_handler(const struct ctl_table *table, int write,
+ 				   void __user *buffer, size_t *lenp,
+ 				   loff_t *ppos)
+ {
+Index: qca-nss-gmac-2023.06.01~17176794/ipq806x/nss_gmac_ethtool.c
+===================================================================
+--- qca-nss-gmac-2023.06.01~17176794.orig/ipq806x/nss_gmac_ethtool.c
++++ qca-nss-gmac-2023.06.01~17176794/ipq806x/nss_gmac_ethtool.c
+@@ -257,9 +257,9 @@ static void nss_gmac_get_ethtool_stats(s
+ static void nss_gmac_get_drvinfo(struct net_device *dev,
+ 						struct ethtool_drvinfo *info)
+ {
+-	strlcpy(info->driver, nss_gmac_driver_string, sizeof(info->driver));
+-	strlcpy(info->version, nss_gmac_driver_version, sizeof(info->version));
+-	strlcpy(info->bus_info, "NSS", ETHTOOL_BUSINFO_LEN);
++	strscpy(info->driver, nss_gmac_driver_string, sizeof(info->driver));
++	strscpy(info->version, nss_gmac_driver_version, sizeof(info->version));
++	strscpy(info->bus_info, "NSS", ETHTOOL_BUSINFO_LEN);
+ 	info->n_priv_flags = __NSS_GMAC_PRIV_FLAG_MAX;
+ }
+ 

@@ -1,0 +1,52 @@
+Linux 6.11 dropped ctl_table sentinels: register_sysctl() and
+register_net_sysctl() now take ARRAY_SIZE() of the table, so the old
+trailing {} entry is registered as a nameless node and the whole table is
+rejected ("procname is null"). For nss-gmac this fails the probe and no
+ethernet interface comes up.
+
+--- a/ecm_interface.c
++++ b/ecm_interface.c
+@@ -8303,7 +8303,6 @@
+ 		.proc_handler		= &ecm_interface_igs_enabled_handler,
+ 	},
+ #endif
+-	{ }
+ };
+ 
+ #ifdef ECM_INTERFACE_IPSEC_GLUE_LAYER_SUPPORT_ENABLE
+--- a/examples/ecm_ae_select.c
++++ b/examples/ecm_ae_select.c
+@@ -130,8 +130,7 @@
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+ 		.proc_handler	= &ecm_ae_test_select_handler,
+-	},
+-	{}
++	}
+ };
+ 
+ /*
+--- a/frontends/ecm_front_end_common.c
++++ b/frontends/ecm_front_end_common.c
+@@ -1157,8 +1157,7 @@
+ 		.maxlen		= sizeof(int) * ECM_FRONT_END_DENIED_PORTS_HTABLE_SIZE,
+ 		.mode		= 0644,
+ 		.proc_handler	= &ecm_front_end_tcp_denied_ports_handler,
+-	},
+-	{}
++	}
+ };
+ 
+ /*
+--- a/frontends/sfe/ecm_sfe_common.c
++++ b/frontends/sfe/ecm_sfe_common.c
+@@ -415,8 +415,7 @@
+ 		.maxlen         = sizeof(int),
+ 		.mode           = 0644,
+ 		.proc_handler   = &ecm_sfe_fse_enable_handler,
+-	},
+-	{}
++	}
+ };
+ 
+ /*

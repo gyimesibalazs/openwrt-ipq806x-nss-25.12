@@ -1,0 +1,79 @@
+Since Linux 5.8 sysctl proc_handlers get a kernel buffer, not a user
+pointer. The rps/pri_map handler still moved data with
+simple_read_from_buffer()/simple_write_to_buffer(), i.e. copy_to_user()
+and copy_from_user() on a kernel address. On 6.12 every read of
+/proc/sys/dev/nss/rps/pri_map trips the usercopy check
+(WARN in proc_sys_call_handler) and returns -EFAULT, and writes fail too.
+
+Use plain kernel copies instead, and NUL-terminate the write buffer
+before sscanf() (a 5-byte write used to fill w_buf[5] completely).
+
+--- a/nss_rps.c
++++ b/nss_rps.c
+@@ -67,12 +67,13 @@
+  * nss_rps_pri_map_print()
+  *	Sysctl handler for printing rps/pri mapping.
+  */
+-static int nss_rps_pri_map_print(const struct ctl_table *ctl, void __user *buffer,
++static int nss_rps_pri_map_print(const struct ctl_table *ctl, void *buffer,
+ 				size_t *lenp, loff_t *ppos, int *pri_map)
+ {
+ 	char *r_buf;
+ 	int i, len;
+ 	size_t cp_bytes = 0;
++	ssize_t rd;
+ 
+ 	/*
+ 	 * (2 * 4) + 12 bytes for the buffer size is sufficient to write
+@@ -106,9 +107,11 @@
+ 	len = scnprintf(r_buf + cp_bytes, 4, "\n");
+ 	cp_bytes += len;
+ 
+-	cp_bytes = simple_read_from_buffer(buffer, *lenp, ppos, r_buf, cp_bytes);
+-	*lenp = cp_bytes;
++	rd = memory_read_from_buffer(buffer, *lenp, ppos, r_buf, cp_bytes);
+ 	kfree(r_buf);
++	if (rd < 0)
++		return rd;
++	*lenp = rd;
+ 	return 0;
+ }
+ 
+@@ -116,12 +119,10 @@
+  * nss_rps_pri_map_parse()
+  *	Sysctl handler for rps/pri mappings.
+  */
+-static int nss_rps_pri_map_parse(const struct ctl_table *ctl, void __user *buffer,
++static int nss_rps_pri_map_parse(const struct ctl_table *ctl, void *buffer,
+ 	size_t *lenp, loff_t *ppos, struct nss_rps_pri_map_parse_data *out)
+ {
+-	size_t cp_bytes = 0;
+-	char w_buf[5];
+-	loff_t w_offset = 0;
++	char w_buf[6];
+ 	char *str;
+ 	unsigned int pri;
+ 	int core, res;
+@@ -137,11 +138,8 @@
+ 	/*
+ 	 * It's a write operation
+ 	 */
+-	cp_bytes = simple_write_to_buffer(w_buf, *lenp, &w_offset, buffer, 5);
+-	if (cp_bytes != *lenp) {
+-		nss_warning("failed to write to buffer\n");
+-		return -EFAULT;
+-	}
++	memcpy(w_buf, buffer, *lenp);
++	w_buf[*lenp] = '\0';
+ 
+ 	str = w_buf;
+ 	res = sscanf(str, "%u %d", &pri, &core);
+@@ -501,7 +499,7 @@
+  *	Configure NSS rps_pri_map
+  */
+ static int nss_rps_pri_map_cfg_handler(const struct ctl_table *ctl, int write,
+-				void __user *buffer, size_t *lenp, loff_t *ppos)
++				void *buffer, size_t *lenp, loff_t *ppos)
+ {
+ 	struct nss_top_instance *nss_top = &nss_top_main;
+ 	struct nss_ctx_instance *nss_ctx = &nss_top->nss[0];

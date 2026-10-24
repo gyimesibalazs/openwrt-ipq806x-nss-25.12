@@ -1,0 +1,12 @@
+#!/bin/sh
+#
+# NSS hands packets to the host on per-CPU queues (dev.nss.rps), so kernel
+# RPS on the NSS ethernet ports would funnel them all back to a single CPU.
+# Let the generic script handle every other device, then turn RPS off on
+# the NSS ports.
+
+/usr/libexec/network/packet-steering.uc "$@"
+
+for q in /sys/class/net/eth[0-9]*/queues/rx-*/rps_cpus; do
+	[ -e "$q" ] && echo 0 > "$q"
+done

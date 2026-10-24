@@ -1,0 +1,299 @@
+From: Gyimesi Balázs <gyimesi.balazs@gmail.com>
+Subject: ecm: accelerate through tag_8021q DSA user ports
+
+With the qca-8021q DSA tagger a switch port reaches its conduit as a
+plain 802.1Q VLAN: the port's standalone VLAN, or the bridge VLAN when
+the port is bridged. Present such a DSA user port to the accel engine
+as a VLAN of the conduit, so the NSS rule carries that VLAN tag on the
+conduit interface, as for an ethX.Y VLAN device.
+
+A VLAN upper of a standalone port is a switch VLAN of its own and
+reaches the conduit with just its own tag. Ports under a VLAN-aware
+bridge are not accelerated: their VLAN depends on the flow.
+
+The VLAN priority lookup now only runs on real VLAN devices.
+
+Signed-off-by: Gyimesi Balázs <gyimesi.balazs@gmail.com>
+---
+--- a/ecm_interface.c
++++ b/ecm_interface.c
+@@ -310,7 +310,35 @@ EXPORT_SYMBOL(ecm_interface_get_and_hold
+  */
+ static inline struct net_device *ecm_interface_vlan_real_dev(struct net_device *vlan_dev)
+ {
+-	return vlan_dev_next_dev(vlan_dev);
++	struct net_device *conduit = ecm_interface_dsa_8021q_conduit(vlan_dev);
++	struct net_device *real_dev;
++	struct dsa_port *dp;
++
++	/*
++	 * A qca-8021q DSA user port is a VLAN of its conduit
++	 */
++	if (conduit)
++		return conduit;
++
++	/*
++	 * A VLAN upper of a standalone qca-8021q DSA port is a switch VLAN of its
++	 * own, which reaches the conduit with just this VLAN tag
++	 */
++	real_dev = vlan_dev_next_dev(vlan_dev);
++	dp = ecm_interface_dsa_8021q_port(real_dev);
++	if (dp && !dsa_port_bridge_dev_get(dp))
++		return dsa_port_to_conduit(dp);
++
++	return real_dev;
++}
++
++/*
++ * ecm_interface_is_vlan_dev()
++ *	True for a VLAN device, and for a DSA user port that is a VLAN of its conduit
++ */
++static inline bool ecm_interface_is_vlan_dev(struct net_device *dev)
++{
++	return is_vlan_dev(dev) || ecm_interface_dsa_8021q_vid(dev) > 0;
+ }
+ 
+ /*
+@@ -3122,6 +3150,25 @@ struct ecm_db_iface_instance *ecm_interf
+ 		/*
+ 		 * VLAN?
+ 		 */
++		if (ecm_interface_dsa_8021q_vid(dev) < 0) {
++			DEBUG_WARN("%px: DSA port %s is under a VLAN-aware bridge, not supported\n", feci, dev_name);
++			return NULL;
++		}
++
++		if (ecm_interface_dsa_8021q_vid(dev) > 0) {
++			/*
++			 * DSA user port with tag_8021q: to the accel engine it is a VLAN of the conduit
++			 */
++			ether_addr_copy(type_info.vlan.address, dev->dev_addr);
++			type_info.vlan.vlan_tag = ecm_interface_dsa_8021q_vid(dev);
++			type_info.vlan.vlan_tpid = ETH_P_8021Q;
++			DEBUG_TRACE("%px: Net device: %px is DSA tag_8021q, mac: %pM, vlan_id: %x\n",
++					feci, dev, type_info.vlan.address, type_info.vlan.vlan_tag);
++
++			ii = ecm_interface_vlan_interface_establish(&type_info.vlan, dev_name, dev_interface_num, ae_interface_num, dev_mtu);
++			goto identifier_update;
++		}
++
+ 		if (is_vlan_dev(dev)) {
+ 			/*
+ 			 * VLAN master
+@@ -3997,7 +4044,7 @@ static uint32_t ecm_interface_multicast_
+ 				/*
+ 				 * VLAN?
+ 				 */
+-				if (is_vlan_dev(dest_dev)) {
++				if (ecm_interface_is_vlan_dev(dest_dev)) {
+ 					/*
+ 					 * VLAN master
+ 					 * No locking needed here, ASSUMPTION is that real_dev is held for as long as we have dev.
+@@ -5221,7 +5268,7 @@ int32_t ecm_interface_heirarchy_construc
+ 				/*
+ 				 * VLAN?
+ 				 */
+-				if (is_vlan_dev(dest_dev)) {
++				if (ecm_interface_is_vlan_dev(dest_dev)) {
+ 					/*
+ 					 * VLAN master
+ 					 * No locking needed here, ASSUMPTION is that real_dev is held for as long as we have dev.
+@@ -6165,7 +6212,7 @@ int32_t ecm_interface_multicast_from_hei
+ 				/*
+ 				 * VLAN?
+ 				 */
+-				if (is_vlan_dev(dest_dev)) {
++				if (ecm_interface_is_vlan_dev(dest_dev)) {
+ 					/*
+ 					 * VLAN master
+ 					 * No locking needed here, ASSUMPTION is that real_dev is held for as long as we have dev.
+--- a/ecm_interface.h
++++ b/ecm_interface.h
+@@ -34,6 +34,85 @@ struct ecm_interface_route {
+ 	bool v4_route;				/* True when a v4 route, false when v6 */
+ };
+ 
++#include <linux/if_vlan.h>
++#include <linux/if_bridge.h>
++#include <net/dsa.h>
++#include <linux/dsa/8021q.h>
++
++/*
++ * ecm_interface_dsa_8021q_port()
++ *	The DSA port of a user port whose switch uses the qca-8021q tagger, or NULL
++ */
++static inline struct dsa_port *ecm_interface_dsa_8021q_port(struct net_device *dev)
++{
++#if IS_ENABLED(CONFIG_NET_DSA_TAG_QCA_8021Q)
++	struct dsa_port *dp;
++
++	if (!dsa_user_dev_check(dev))
++		return NULL;
++
++	dp = dsa_port_from_netdev(dev);
++	if (IS_ERR(dp) || dp->ds->dst->tag_ops->proto != DSA_TAG_PROTO_QCA_8021Q)
++		return NULL;
++
++	return dp;
++#else
++	return NULL;
++#endif
++}
++
++/*
++ * ecm_interface_dsa_8021q_vid()
++ *	A qca-8021q DSA user port reaches the conduit as a plain 802.1Q VLAN: its
++ *	standalone VLAN, or its bridge's VLAN under a VLAN-unaware bridge. Returns
++ *	that VLAN, 0 for any other device, and -1 under a VLAN-aware bridge, where
++ *	the VLAN depends on the flow and is not known here.
++ */
++static inline int ecm_interface_dsa_8021q_vid(struct net_device *dev)
++{
++#if IS_ENABLED(CONFIG_NET_DSA_TAG_QCA_8021Q)
++	struct dsa_port *dp = ecm_interface_dsa_8021q_port(dev);
++	struct net_device *br;
++
++	if (!dp)
++		return 0;
++
++	br = dsa_port_bridge_dev_get(dp);
++	if (!br)
++		return dsa_tag_8021q_standalone_vid(dp);
++
++	if (br_vlan_enabled(br))
++		return -1;
++
++	return dsa_tag_8021q_bridge_vid(dsa_port_bridge_num_get(dp));
++#else
++	return 0;
++#endif
++}
++
++/*
++ * ecm_interface_dsa_8021q_conduit()
++ *	The conduit under a qca-8021q DSA user port, or NULL
++ */
++static inline struct net_device *ecm_interface_dsa_8021q_conduit(struct net_device *dev)
++{
++	struct dsa_port *dp = ecm_interface_dsa_8021q_port(dev);
++
++	return dp ? dsa_port_to_conduit(dp) : NULL;
++}
++
++/*
++ * ecm_interface_vlan_egress_qos_mask()
++ *	VLAN priority bits for a VLAN device; none for a DSA user port
++ */
++static inline u16 ecm_interface_vlan_egress_qos_mask(struct net_device *dev, u32 skprio)
++{
++	if (!is_vlan_dev(dev))
++		return 0;
++
++	return vlan_dev_get_egress_qos_mask(dev, skprio);
++}
++
+ /*
+  *  Netdev Index value for a Loopback device
+  */
+--- a/frontends/nss/ecm_nss_multicast_ipv4.c
++++ b/frontends/nss/ecm_nss_multicast_ipv4.c
+@@ -1153,7 +1153,7 @@ static void ecm_nss_multicast_ipv4_conne
+ 
+ 				vlan_out_dev = dev_get_by_index(&init_net, ecm_db_iface_interface_identifier_get(ii));
+ 				if (vlan_out_dev) {
+-					vlan_prio = vlan_dev_get_egress_qos_mask(vlan_out_dev, pr->flow_qos_tag);
++					vlan_prio = ecm_interface_vlan_egress_qos_mask(vlan_out_dev, pr->flow_qos_tag);
+ 					create->if_rule[valid_vif_idx].egress_vlan_tag[interface_type_counts[ii_type]] |= vlan_prio;
+ 					dev_put(vlan_out_dev);
+ 					vlan_out_dev = NULL;
+--- a/frontends/nss/ecm_nss_multicast_ipv6.c
++++ b/frontends/nss/ecm_nss_multicast_ipv6.c
+@@ -1124,7 +1124,7 @@ static void ecm_nss_multicast_ipv6_conne
+ 
+ 				vlan_out_dev = dev_get_by_index(&init_net, ecm_db_iface_interface_identifier_get(ii));
+ 				if (vlan_out_dev) {
+-					vlan_prio = vlan_dev_get_egress_qos_mask(vlan_out_dev, pr->flow_qos_tag);
++					vlan_prio = ecm_interface_vlan_egress_qos_mask(vlan_out_dev, pr->flow_qos_tag);
+ 					create->if_rule[valid_vif_idx].egress_vlan_tag[interface_type_counts[ii_type]] |= vlan_prio;
+ 					dev_put(vlan_out_dev);
+ 					vlan_out_dev = NULL;
+--- a/frontends/nss/ecm_nss_non_ported_ipv4.c
++++ b/frontends/nss/ecm_nss_non_ported_ipv4.c
+@@ -773,7 +773,7 @@ static void ecm_nss_non_ported_ipv4_conn
+ 			 */
+ 			vlan_in_dev = dev_get_by_index(&init_net, ecm_db_iface_interface_identifier_get(ii));
+ 			if (vlan_in_dev) {
+-				vlan_value |= vlan_dev_get_egress_qos_mask(vlan_in_dev, pr->return_qos_tag);
++				vlan_value |= ecm_interface_vlan_egress_qos_mask(vlan_in_dev, pr->return_qos_tag);
+ 				dev_put(vlan_in_dev);
+ 				vlan_in_dev = NULL;
+ 			}
+@@ -1004,7 +1004,7 @@ static void ecm_nss_non_ported_ipv4_conn
+ 			 */
+ 			vlan_out_dev = dev_get_by_index(&init_net, ecm_db_iface_interface_identifier_get(ii));
+ 			if (vlan_out_dev) {
+-				vlan_value |= vlan_dev_get_egress_qos_mask(vlan_out_dev, pr->flow_qos_tag);
++				vlan_value |= ecm_interface_vlan_egress_qos_mask(vlan_out_dev, pr->flow_qos_tag);
+ 				dev_put(vlan_out_dev);
+ 				vlan_out_dev = NULL;
+ 			}
+--- a/frontends/nss/ecm_nss_non_ported_ipv6.c
++++ b/frontends/nss/ecm_nss_non_ported_ipv6.c
+@@ -680,7 +680,7 @@ static void ecm_nss_non_ported_ipv6_conn
+ 			 */
+ 			vlan_in_dev = dev_get_by_index(&init_net, ecm_db_iface_interface_identifier_get(ii));
+ 			if (vlan_in_dev) {
+-				vlan_value |= vlan_dev_get_egress_qos_mask(vlan_in_dev, pr->return_qos_tag);
++				vlan_value |= ecm_interface_vlan_egress_qos_mask(vlan_in_dev, pr->return_qos_tag);
+ 				dev_put(vlan_in_dev);
+ 				vlan_in_dev = NULL;
+ 			}
+@@ -903,7 +903,7 @@ static void ecm_nss_non_ported_ipv6_conn
+ 			 */
+ 			vlan_out_dev = dev_get_by_index(&init_net, ecm_db_iface_interface_identifier_get(ii));
+ 			if (vlan_out_dev) {
+-				vlan_value |= vlan_dev_get_egress_qos_mask(vlan_out_dev, pr->flow_qos_tag);
++				vlan_value |= ecm_interface_vlan_egress_qos_mask(vlan_out_dev, pr->flow_qos_tag);
+ 				dev_put(vlan_out_dev);
+ 				vlan_out_dev = NULL;
+ 			}
+--- a/frontends/nss/ecm_nss_ported_ipv4.c
++++ b/frontends/nss/ecm_nss_ported_ipv4.c
+@@ -609,7 +609,7 @@ static void ecm_nss_ported_ipv4_connecti
+ 			 */
+ 			vlan_in_dev = dev_get_by_index(&init_net, ecm_db_iface_interface_identifier_get(ii));
+ 			if (vlan_in_dev) {
+-				vlan_value |= vlan_dev_get_egress_qos_mask(vlan_in_dev, pr->return_qos_tag);
++				vlan_value |= ecm_interface_vlan_egress_qos_mask(vlan_in_dev, pr->return_qos_tag);
+ 				dev_put(vlan_in_dev);
+ 				vlan_in_dev = NULL;
+ 			}
+@@ -894,7 +894,7 @@ static void ecm_nss_ported_ipv4_connecti
+ 			 */
+ 			vlan_out_dev = dev_get_by_index(&init_net, ecm_db_iface_interface_identifier_get(ii));
+ 			if (vlan_out_dev) {
+-				vlan_value |= vlan_dev_get_egress_qos_mask(vlan_out_dev, pr->flow_qos_tag);
++				vlan_value |= ecm_interface_vlan_egress_qos_mask(vlan_out_dev, pr->flow_qos_tag);
+ 				dev_put(vlan_out_dev);
+ 				vlan_out_dev = NULL;
+ 			}
+--- a/frontends/nss/ecm_nss_ported_ipv6.c
++++ b/frontends/nss/ecm_nss_ported_ipv6.c
+@@ -603,7 +603,7 @@ static void ecm_nss_ported_ipv6_connecti
+ 			 */
+ 			vlan_in_dev = dev_get_by_index(&init_net, ecm_db_iface_interface_identifier_get(ii));
+ 			if (vlan_in_dev) {
+-				vlan_value |= vlan_dev_get_egress_qos_mask(vlan_in_dev, pr->return_qos_tag);
++				vlan_value |= ecm_interface_vlan_egress_qos_mask(vlan_in_dev, pr->return_qos_tag);
+ 				dev_put(vlan_in_dev);
+ 				vlan_in_dev = NULL;
+ 			}
+@@ -864,7 +864,7 @@ static void ecm_nss_ported_ipv6_connecti
+ 			 */
+ 			vlan_out_dev = dev_get_by_index(&init_net, ecm_db_iface_interface_identifier_get(ii));
+ 			if (vlan_out_dev) {
+-				vlan_value |= vlan_dev_get_egress_qos_mask(vlan_out_dev, pr->flow_qos_tag);
++				vlan_value |= ecm_interface_vlan_egress_qos_mask(vlan_out_dev, pr->flow_qos_tag);
+ 				dev_put(vlan_out_dev);
+ 				vlan_out_dev = NULL;
+ 			}

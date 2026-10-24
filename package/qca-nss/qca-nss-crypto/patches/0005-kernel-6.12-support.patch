@@ -1,0 +1,68 @@
+Index: qca-nss-crypto-1/v1.0/src/nss_crypto_if.c
+===================================================================
+--- qca-nss-crypto-1.orig/v1.0/src/nss_crypto_if.c
++++ qca-nss-crypto-1/v1.0/src/nss_crypto_if.c
+@@ -162,7 +162,7 @@ void nss_crypto_register_user(nss_crypto
+ 	user->detach = detach;
+ 	user->ctx = NULL;
+ 
+-	strlcpy(user->zone_name, NSS_CRYPTO_ZONE_DEFAULT_NAME, NSS_CRYPTO_ZONE_NAME_LEN);
++	strscpy(user->zone_name, NSS_CRYPTO_ZONE_DEFAULT_NAME, NSS_CRYPTO_ZONE_NAME_LEN);
+ 
+ 	/*
+ 	 * initialize list elements
+Index: qca-nss-crypto-1/v2.0/tool/nss_crypto_bench.c
+===================================================================
+--- qca-nss-crypto-1.orig/v2.0/tool/nss_crypto_bench.c
++++ qca-nss-crypto-1/v2.0/tool/nss_crypto_bench.c
+@@ -980,7 +980,7 @@ int __init crypto_bench_init(void)
+ 
+ 	ctx->attach = crypto_bench_attach;
+ 	ctx->detach = crypto_bench_detach;
+-	strlcpy(ctx->name, "bench", sizeof(ctx->name));
++	strscpy(ctx->name, "bench", sizeof(ctx->name));
+ 	ctx->hdr_pool_sz = 1024;
+ 	ctx->default_hdr_sz = 512;
+ 	ctx->timeout_ticks = 1;
+Index: qca-nss-crypto-1/v1.0/src/nss_crypto_dtsi.c
+===================================================================
+--- qca-nss-crypto-1.orig/v1.0/src/nss_crypto_dtsi.c
++++ qca-nss-crypto-1/v1.0/src/nss_crypto_dtsi.c
+@@ -346,7 +346,7 @@ static int nss_crypto_probe(struct platf
+  * nss_crypto_remove()
+  *	remove the crypto engine and deregister everything
+  */
+-static int nss_crypto_remove(struct platform_device *pdev)
++static void nss_crypto_remove(struct platform_device *pdev)
+ {
+ 	struct nss_crypto_ctrl_eng *e_ctrl;
+ 	struct nss_crypto_ctrl *ctrl;
+@@ -361,7 +361,6 @@ static int nss_crypto_remove(struct plat
+ 		kfree(ctrl->clocks);
+ 	}
+ 
+-	return 0;
+ };
+ 
+ static struct of_device_id nss_crypto_dt_ids[] = {
+Index: qca-nss-crypto-1/v1.0/src/nss_crypto_platform.c
+===================================================================
+--- qca-nss-crypto-1.orig/v1.0/src/nss_crypto_platform.c
++++ qca-nss-crypto-1/v1.0/src/nss_crypto_platform.c
+@@ -167,7 +167,7 @@ static int nss_crypto_probe(struct platf
+  * nss_crypto_remove()
+  * 	remove the crypto engine and deregister everything
+  */
+-static int nss_crypto_remove(struct platform_device *pdev)
++static void nss_crypto_remove(struct platform_device *pdev)
+ {
+ 	struct nss_crypto_ctrl_eng *ctrl;
+ 
+@@ -176,7 +176,6 @@ static int nss_crypto_remove(struct plat
+ 	/**
+ 	 * XXX: pipe deinit goes here
+ 	 */
+-	return 0;
+ };
+ 
+ /*

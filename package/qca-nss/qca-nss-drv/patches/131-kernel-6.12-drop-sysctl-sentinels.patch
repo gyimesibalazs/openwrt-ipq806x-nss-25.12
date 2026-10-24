@@ -1,0 +1,169 @@
+Linux 6.11 dropped ctl_table sentinels: register_sysctl() and
+register_net_sysctl() now take ARRAY_SIZE() of the table, so the old
+trailing {} entry is registered as a nameless node and the whole table is
+rejected ("procname is null"). For nss-gmac this fails the probe and no
+ethernet interface comes up.
+
+--- a/nss_c2c_tx.c
++++ b/nss_c2c_tx.c
+@@ -327,8 +327,7 @@
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+ 		.proc_handler	= &nss_c2c_tx_performance_test_handler,
+-	},
+-	{ }
++	}
+ };
+ 
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
+--- a/nss_dma.c
++++ b/nss_dma.c
+@@ -374,8 +374,7 @@
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+ 		.proc_handler	= proc_dointvec,
+-	},
+-	{ }
++	}
+ };
+ 
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
+--- a/nss_init.c
++++ b/nss_init.c
+@@ -494,8 +494,7 @@
+ 		.maxlen			= sizeof(int),
+ 		.mode			= 0644,
+ 		.proc_handler	= &nss_max_reuse_handler,
+-	},
+-	{ }
++	}
+ };
+ #endif
+ 
+@@ -531,8 +530,7 @@
+ 		.maxlen			= sizeof(int),
+ 		.mode			= 0644,
+ 		.proc_handler	= &nss_get_average_inst_handler,
+-	},
+-	{ }
++	}
+ };
+ #endif
+ 
+@@ -580,8 +578,7 @@
+ 		.maxlen                 = sizeof(int),
+ 		.mode                   = 0644,
+ 		.proc_handler           = &nss_paged_mode_handler,
+-	},
+-	{ }
++	}
+ };
+ 
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+--- a/nss_ipv4.c
++++ b/nss_ipv4.c
+@@ -693,8 +693,7 @@
+ 		.maxlen		= sizeof(struct nss_dscp_map_entry),
+ 		.mode		= 0644,
+ 		.proc_handler	= &nss_ipv4_dscp_map_cfg_handler,
+-	},
+-	{ }
++	}
+ };
+ 
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
+--- a/nss_ipv6.c
++++ b/nss_ipv6.c
+@@ -702,8 +702,7 @@
+ 		.maxlen			= sizeof(struct nss_dscp_map_entry),
+ 		.mode			= 0644,
+ 		.proc_handler		= &nss_ipv6_dscp_map_cfg_handler,
+-	},
+-	{ }
++	}
+ };
+ 
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
+--- a/nss_n2h.c
++++ b/nss_n2h.c
+@@ -1702,9 +1702,7 @@
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+ 		.proc_handler	= &nss_n2h_host_bp_cfg_core0_handler,
+-	},
+-
+-	{ }
++	}
+ };
+ 
+ static struct ctl_table nss_n2h_table_multi_core[] = {
+@@ -1855,8 +1853,7 @@
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+ 		.proc_handler	= &nss_n2h_host_bp_cfg_core1_handler,
+-	},
+-	{ }
++	}
+ };
+ 
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
+--- a/nss_ppe_vp.c
++++ b/nss_ppe_vp.c
+@@ -329,8 +329,7 @@
+ 		.maxlen         = sizeof(int),
+ 		.mode           = 0644,
+ 		.proc_handler   = &nss_ppe_vp_disable_handler,
+-	},
+-	{ }
++	}
+ };
+ 
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
+--- a/nss_pppoe.c
++++ b/nss_pppoe.c
+@@ -349,8 +349,7 @@
+ 		.maxlen                 = sizeof(int),
+ 		.mode                   = 0644,
+ 		.proc_handler           = &nss_pppoe_br_accel_mode_handler,
+-	},
+-	{ }
++	}
+ };
+ 
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
+--- a/nss_project.c
++++ b/nss_project.c
+@@ -275,8 +275,7 @@
+ 		.maxlen			= sizeof(int),
+ 		.mode			= 0644,
+ 		.proc_handler		= &nss_project_wt_stats_handler,
+-	},
+-	{ }
++	}
+ };
+ 
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
+--- a/nss_rps.c
++++ b/nss_rps.c
+@@ -553,8 +553,7 @@
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+ 		.proc_handler	= &nss_rps_pri_map_cfg_handler,
+-	},
+-	{ }
++	}
+ };
+ 
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
+--- a/nss_stats.c
++++ b/nss_stats.c
+@@ -81,8 +81,7 @@
+ 		.maxlen			= sizeof(int),
+ 		.mode			= 0644,
+ 		.proc_handler		= &nss_stats_nonzero_handler,
+-	},
+-	{ }
++	}
+ };
+ 
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
