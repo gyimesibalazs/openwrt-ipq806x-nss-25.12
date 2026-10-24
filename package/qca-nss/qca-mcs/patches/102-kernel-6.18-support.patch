@@ -1,0 +1,127 @@
+--- a/mc_netlink.c
++++ b/mc_netlink.c
+@@ -742,7 +742,7 @@ static void __mc_netlink_receive(struct
+ 					mc->local_query_interval = i->val * HZ;
+ 					if (timer_pending(&mc->qtimer) ?
+ 						time_after(mc->qtimer.expires, jiffies + mc->local_query_interval) :
+-							try_to_del_timer_sync(&mc->qtimer) >= 0) {
++							timer_delete_sync_try(&mc->qtimer) >= 0) {
+ 						if (mc->started)
+ 							mod_timer(&mc->qtimer, jiffies + mc->local_query_interval);
+ 					}
+--- a/mc_snooping.c
++++ b/mc_snooping.c
+@@ -590,7 +590,7 @@ static void mc_mdb_destroy(struct mc_mdb
+ 	}
+ 
+ 	hlist_del_rcu(&mdb->hlist);
+-	del_timer_sync(&mdb->etimer);
++	timer_delete_sync(&mdb->etimer);
+ 
+ 	if (mdb->flood_ifcnt != 0) {
+ 		mc_group_notify_one(mdb->mc, &mdb->group);
+@@ -621,7 +621,7 @@ static void mc_agingtimer_reset(struct m
+ 
+ 	if (timer_pending(&mc->agingtimer) ?
+ 			time_after(mc->agingtimer.expires, jiffies + expires) :
+-				try_to_del_timer_sync(&mc->agingtimer) >= 0) {
++				timer_delete_sync_try(&mc->agingtimer) >= 0) {
+ 		mod_timer(&mc->agingtimer, jiffies + expires);
+ 		MC_PRINT("Reset Group Membership Interval ageing timer, expires = %u\n",
+ 				jiffies_to_msecs(expires) / 1000);
+@@ -649,7 +649,7 @@ static void mc_rtimer_reset(struct mc_st
+ 
+ 	if (timer_pending(&mc->rtimer) ?
+ 			time_after(mc->rtimer.expires, jiffies + expires) :
+-				try_to_del_timer_sync(&mc->rtimer) >= 0) {
++				timer_delete_sync_try(&mc->rtimer) >= 0) {
+ 		mod_timer(&mc->rtimer, jiffies + expires);
+ 		MC_PRINT("Reset Querier Interval ageing timer, expires = %u\n",
+ 				jiffies_to_msecs(expires) / 1000);
+@@ -666,7 +666,7 @@ static void mc_mdb_expired(unsigned long
+ #endif
+ {
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+-	struct mc_mdb_entry *mdb = from_timer(mdb, tl, etimer);
++	struct mc_mdb_entry *mdb = timer_container_of(mdb, tl, etimer);
+ #else
+ 	struct mc_mdb_entry *mdb = (struct mc_mdb_entry *)data;
+ #endif
+@@ -1156,7 +1156,7 @@ static void mc_leave_group(struct mc_str
+ 	fg->ageing_timer = now - expire_time + expire_delay;
+ 	if (timer_pending(&mc->agingtimer) ?
+ 		time_after(mc->agingtimer.expires, jiffies + expire_delay) :
+-		try_to_del_timer_sync(&mc->agingtimer) >= 0) {
++		timer_delete_sync_try(&mc->agingtimer) >= 0) {
+ 		mod_timer(&mc->agingtimer, jiffies + expire_delay);
+ 		MC_PRINT("Reset Group Membership Interval ageing timer, expires = %u ms\n",
+ 			leave_delay_msecond);
+@@ -2023,7 +2023,7 @@ static void mc_query_cycle_start(struct
+ 			goto out;
+ 		if (timer_pending(&mdb->etimer) ?
+ 				time_after(mdb->etimer.expires, now + root_qe->max_resp_time) :
+-				try_to_del_timer_sync(&mdb->etimer) >= 0) {
++				timer_delete_sync_try(&mdb->etimer) >= 0) {
+ 			mdb->timer_base = now;
+ 			mod_timer(&mdb->etimer, now + root_qe->max_resp_time);
+ 			mc_query_timer_dump(mdb, root_qe->max_resp_time, 1);
+@@ -2038,7 +2038,7 @@ static void mc_query_cycle_start(struct
+ 					continue;
+ 				if (timer_pending(&mdb->etimer) ?
+ 						time_after(mdb->etimer.expires, now + root_qe->max_resp_time) :
+-						try_to_del_timer_sync(&mdb->etimer) >= 0) {
++						timer_delete_sync_try(&mdb->etimer) >= 0) {
+ 					mdb->timer_base = now;
+ 					mod_timer(&mdb->etimer, now + root_qe->max_resp_time);
+ 					mc_query_timer_dump(mdb, root_qe->max_resp_time, 0);
+@@ -2868,10 +2868,10 @@ static int mc_stop(struct mc_struct *mc)
+ 	mc_mdb_flush(mc);
+ 	mc_rlist_flush(mc);
+ 
+-	del_timer_sync(&mc->qtimer);
+-	del_timer_sync(&mc->agingtimer);
+-	del_timer_sync(&mc->rtimer);
+-	del_timer_sync(&mc->evtimer);
++	timer_delete_sync(&mc->qtimer);
++	timer_delete_sync(&mc->agingtimer);
++	timer_delete_sync(&mc->rtimer);
++	timer_delete_sync(&mc->evtimer);
+ 
+ 	return 0;
+ }
+@@ -2897,7 +2897,7 @@ static void mc_router_cleanup(unsigned l
+ {
+ 	int delay_reset = 0;
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+-	struct mc_struct *mc = from_timer(mc, tl, rtimer);
++	struct mc_struct *mc = timer_container_of(mc, tl, rtimer);
+ #else
+ 	struct mc_struct *mc = (struct mc_struct *)data;
+ #endif
+@@ -2952,7 +2952,7 @@ static void mc_mdb_query(unsigned long d
+ {
+ 	int i;
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+-	struct mc_struct *mc = from_timer(mc, tl, qtimer);
++	struct mc_struct *mc = timer_container_of(mc, tl, qtimer);
+ #else
+ 	struct mc_struct *mc = (struct mc_struct *)data;
+ #endif
+@@ -3007,7 +3007,7 @@ static void mc_mdb_cleanup(unsigned long
+ {
+ 	int i;
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+-	struct mc_struct *mc = from_timer(mc, tl, agingtimer);
++	struct mc_struct *mc = timer_container_of(mc, tl, agingtimer);
+ #else
+ 	struct mc_struct *mc = (struct mc_struct *)data;
+ #endif
+@@ -3193,7 +3193,7 @@ static void mc_event_delay(unsigned long
+ #endif
+ {
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+-	struct mc_struct *mc = from_timer(mc, tl, evtimer);
++	struct mc_struct *mc = timer_container_of(mc, tl, evtimer);
+ 
+ 	mc_netlink_event_send(mc, MC_EVENT_MDB_UPDATED,	0, NULL);
+ #else

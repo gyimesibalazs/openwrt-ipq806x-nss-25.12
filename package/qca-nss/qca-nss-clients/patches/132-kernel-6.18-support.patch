@@ -1,0 +1,71 @@
+--- a/nss_qdisc/nss_qdisc.c
++++ b/nss_qdisc/nss_qdisc.c
+@@ -353,6 +353,21 @@ static int nss_qdisc_detach_bshaper(stru
+ 	return 0;
+ }
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0))
++/*
++ * nss_qdisc_first_net_device_rcu()
++ *	first_net_device_rcu() was removed from the kernel; same lookup.
++ */
++static inline struct net_device *nss_qdisc_first_net_device_rcu(struct net *net)
++{
++	struct list_head *lh = rcu_dereference(list_next_rcu(&net->dev_base_head));
++
++	return lh == &net->dev_base_head ? NULL : net_device_entry(lh);
++}
++#else
++#define nss_qdisc_first_net_device_rcu first_net_device_rcu
++#endif
++
+ /*
+  * nss_qdisc_refresh_bshaper_assignment()
+  *	Performs assign on unassign of bshaper for interfaces on the bridge.
+@@ -381,7 +396,7 @@ static int nss_qdisc_refresh_bshaper_ass
+ 	br_update.unassign_count = 0;
+ 
+ 	rcu_read_lock();
+-	dev = first_net_device_rcu(&init_net);
++	dev = nss_qdisc_first_net_device_rcu(&init_net);
+ 
+ 	while(dev) {
+ 		struct net_bridge_port *br_port;
+@@ -2680,7 +2695,7 @@ static void nss_qdisc_get_stats_timer_ca
+ #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0))
+ 	struct nss_qdisc *nq = (struct nss_qdisc *)data;
+ #else
+-	struct nss_qdisc *nq = from_timer(nq, tm, stats_get_timer);
++	struct nss_qdisc *nq = timer_container_of(nq, tm, stats_get_timer);
+ #endif
+ 
+ 	nss_tx_status_t rc;
+@@ -2751,7 +2766,7 @@ void nss_qdisc_stop_basic_stats_polling(
+ 	/*
+ 	 * If the timer was active, then delete timer and return.
+ 	 */
+-	if (del_timer(&nq->stats_get_timer) > 0) {
++	if (timer_delete(&nq->stats_get_timer) > 0) {
+ 		/*
+ 		 * The timer was still active (counting down) when it was deleted.
+ 		 * Therefore we are sure that there are no pending stats request
+--- a/tls/nss_tlsmgr_tun.c
++++ b/tls/nss_tlsmgr_tun.c
+@@ -291,7 +291,7 @@ void nss_tlsmgr_unregister_notify(struct
+ 	write_unlock_bh(&tun->lock);
+ 
+ 	BUG_ON(in_atomic());
+-	del_timer_sync(&tun->notify.timer);
++	timer_delete_sync(&tun->notify.timer);
+ }
+ 
+ /*
+@@ -413,7 +413,7 @@ void nss_tlsmgr_tun_del(struct net_devic
+ 
+ 	nss_tlsmgr_unregister_notify(dev);
+ 
+-	del_timer_sync(&tun->decongest.timer);
++	timer_delete_sync(&tun->decongest.timer);
+ 	tun->decongest.app_data = NULL;
+ 	tun->decongest.cb = NULL;
+ 	tun->decongest.ticks = 0;

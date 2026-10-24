@@ -1,0 +1,349 @@
+--- a/nss_core.c
++++ b/nss_core.c
+@@ -48,6 +48,8 @@
+  * the skb recycle code must be checked against Linux skb handling.
+  *
+  * Tested on: 3.4, 3.10, 3.14, 3.18, 4.4, 5.4, 5.10, 5.15, 6.6 and 6.12
++ * 6.18: skb and shared info init (__alloc_skb, __finalize_skb_around)
++ * unchanged from 6.12
+  */
+ #if (!( \
+ (((LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(3, 5, 0)))) || \
+@@ -60,7 +62,8 @@
+ (((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)))) || \
+ (((LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)))) || \
+ (((LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)))) || \
+-(((LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 13, 0))))))
++(((LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 13, 0)))) || \
++(((LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 19, 0))))))
+ #error "Check skb recycle code in this file to match Linux version"
+ #endif
+ 
+--- a/nss_core.h
++++ b/nss_core.h
+@@ -446,7 +446,7 @@ struct nss_ctx_instance {
+ 	struct nss_top_instance *nss_top;
+ 					/* Back pointer to NSS Top */
+ 	struct device *dev;		/* Pointer to the original device from probe */
+-	struct net_device napi_ndev;    /* Dummy_netdev for NAPI */
++	struct net_device *napi_ndev;   /* Dummy_netdev for NAPI */
+ 	uint32_t id;			/* Core ID for this instance */
+ 	void __iomem *nmap;		/* Pointer to NSS CSM registers */
+ 	void __iomem *vmap;		/* Virt mem pointer to virtual register map */
+--- a/nss_hal/fsm9010/nss_hal_pvt.c
++++ b/nss_hal/fsm9010/nss_hal_pvt.c
+@@ -291,9 +291,9 @@ static int __nss_hal_request_irq(struct
+ 
+ 	int_ctx->irq = npd->irq[irq_num];
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-	netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi, 64);
++	netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi, 64);
+ #else
+-	netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi, 64);
++	netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi, 64);
+ #endif
+ 	return 0;
+ }
+--- a/nss_hal/ipq60xx/nss_hal_pvt.c
++++ b/nss_hal/ipq60xx/nss_hal_pvt.c
+@@ -615,9 +615,9 @@ static int __nss_hal_request_irq(struct
+ 
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_EMPTY_BUFFER_SOS) {
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
+ #endif
+ 		int_ctx->cause = NSS_N2H_INTR_EMPTY_BUFFERS_SOS;
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_empty_buf_sos", int_ctx);
+@@ -625,9 +625,9 @@ static int __nss_hal_request_irq(struct
+ 
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_EMPTY_BUFFER_QUEUE) {
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_EMPTY_BUFFER_RETURN_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_EMPTY_BUFFER_RETURN_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_EMPTY_BUFFER_RETURN_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_EMPTY_BUFFER_RETURN_PROCESSING_WEIGHT);
+ #endif
+ 		int_ctx->cause = NSS_N2H_INTR_EMPTY_BUFFER_QUEUE;
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_empty_buf_queue", int_ctx);
+@@ -635,9 +635,9 @@ static int __nss_hal_request_irq(struct
+ 
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_TX_UNBLOCKED) {
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_TX_UNBLOCKED_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_TX_UNBLOCKED_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_TX_UNBLOCKED_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_TX_UNBLOCKED_PROCESSING_WEIGHT);
+ #endif
+ 		int_ctx->cause = NSS_N2H_INTR_TX_UNBLOCKED;
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss-tx-unblock", int_ctx);
+@@ -645,9 +645,9 @@ static int __nss_hal_request_irq(struct
+ 
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_DATA_QUEUE_0) {
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #endif
+ 		int_ctx->cause = NSS_N2H_INTR_DATA_QUEUE_0;
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_queue0", int_ctx);
+@@ -656,9 +656,9 @@ static int __nss_hal_request_irq(struct
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_DATA_QUEUE_1) {
+ 		int_ctx->cause = NSS_N2H_INTR_DATA_QUEUE_1;
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #endif
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_queue1", int_ctx);
+ 	}
+@@ -666,9 +666,9 @@ static int __nss_hal_request_irq(struct
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_DATA_QUEUE_2) {
+ 		int_ctx->cause = NSS_N2H_INTR_DATA_QUEUE_2;
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #endif
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_queue2", int_ctx);
+ 	}
+@@ -676,9 +676,9 @@ static int __nss_hal_request_irq(struct
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_DATA_QUEUE_3) {
+ 		int_ctx->cause = NSS_N2H_INTR_DATA_QUEUE_3;
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #endif
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_queue3", int_ctx);
+ 	}
+@@ -686,18 +686,18 @@ static int __nss_hal_request_irq(struct
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_COREDUMP_COMPLETE) {
+ 		int_ctx->cause = NSS_N2H_INTR_COREDUMP_COMPLETE;
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_emergency, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_emergency, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_emergency, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_emergency, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #endif
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_coredump_complete", int_ctx);
+ 	}
+ 
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_PAGED_EMPTY_BUFFER_SOS) {
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
+ #endif
+ 		int_ctx->cause = NSS_N2H_INTR_PAGED_EMPTY_BUFFERS_SOS;
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_paged_empty_buf_sos", int_ctx);
+@@ -706,9 +706,9 @@ static int __nss_hal_request_irq(struct
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_PROFILE_DMA) {
+ 		int_ctx->cause = NSS_N2H_INTR_PROFILE_DMA;
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_sdma, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_sdma, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_sdma, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_sdma, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #endif
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_profile_dma", int_ctx);
+ 	}
+--- a/nss_hal/ipq806x/nss_hal_pvt.c
++++ b/nss_hal/ipq806x/nss_hal_pvt.c
+@@ -1184,9 +1184,9 @@ static int __nss_hal_request_irq(struct
+ 
+ 	int_ctx->irq = npd->irq[irq_num];
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-	netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi, 64);
++	netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi, 64);
+ #else
+-	netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi, 64);
++	netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi, 64);
+ #endif
+ 
+ 	return 0;
+--- a/nss_hal/ipq807x/nss_hal_pvt.c
++++ b/nss_hal/ipq807x/nss_hal_pvt.c
+@@ -657,9 +657,9 @@ static int __nss_hal_request_irq(struct
+ 
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_EMPTY_BUFFER_SOS) {
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
+ #endif
+ 		int_ctx->cause = NSS_N2H_INTR_EMPTY_BUFFERS_SOS;
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_empty_buf_sos", int_ctx);
+@@ -667,9 +667,9 @@ static int __nss_hal_request_irq(struct
+ 
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_EMPTY_BUFFER_QUEUE) {
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_EMPTY_BUFFER_RETURN_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_EMPTY_BUFFER_RETURN_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_EMPTY_BUFFER_RETURN_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_EMPTY_BUFFER_RETURN_PROCESSING_WEIGHT);
+ #endif
+ 		int_ctx->cause = NSS_N2H_INTR_EMPTY_BUFFER_QUEUE;
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_empty_buf_queue", int_ctx);
+@@ -677,9 +677,9 @@ static int __nss_hal_request_irq(struct
+ 
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_TX_UNBLOCKED) {
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_TX_UNBLOCKED_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_TX_UNBLOCKED_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_TX_UNBLOCKED_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_TX_UNBLOCKED_PROCESSING_WEIGHT);
+ #endif
+ 		int_ctx->cause = NSS_N2H_INTR_TX_UNBLOCKED;
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss-tx-unblock", int_ctx);
+@@ -687,9 +687,9 @@ static int __nss_hal_request_irq(struct
+ 
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_DATA_QUEUE_0) {
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #endif
+ 		int_ctx->cause = NSS_N2H_INTR_DATA_QUEUE_0;
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_queue0", int_ctx);
+@@ -698,9 +698,9 @@ static int __nss_hal_request_irq(struct
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_DATA_QUEUE_1) {
+ 		int_ctx->cause = NSS_N2H_INTR_DATA_QUEUE_1;
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #endif
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_queue1", int_ctx);
+ 	}
+@@ -708,9 +708,9 @@ static int __nss_hal_request_irq(struct
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_DATA_QUEUE_2) {
+ 		int_ctx->cause = NSS_N2H_INTR_DATA_QUEUE_2;
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #endif
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_queue2", int_ctx);
+ 	}
+@@ -718,9 +718,9 @@ static int __nss_hal_request_irq(struct
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_DATA_QUEUE_3) {
+ 		int_ctx->cause = NSS_N2H_INTR_DATA_QUEUE_3;
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_queue, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #endif
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_queue3", int_ctx);
+ 	}
+@@ -728,18 +728,18 @@ static int __nss_hal_request_irq(struct
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_COREDUMP_COMPLETE) {
+ 		int_ctx->cause = NSS_N2H_INTR_COREDUMP_COMPLETE;
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_emergency, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_emergency, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_emergency, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_emergency, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #endif
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_coredump_complete", int_ctx);
+ 	}
+ 
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_PAGED_EMPTY_BUFFER_SOS) {
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_non_queue, NSS_EMPTY_BUFFER_SOS_PROCESSING_WEIGHT);
+ #endif
+ 		int_ctx->cause = NSS_N2H_INTR_PAGED_EMPTY_BUFFERS_SOS;
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_paged_empty_buf_sos", int_ctx);
+@@ -748,9 +748,9 @@ static int __nss_hal_request_irq(struct
+ 	if (irq_num == NSS_HAL_N2H_INTR_PURPOSE_PROFILE_DMA) {
+ 		int_ctx->cause = NSS_N2H_INTR_PROFILE_DMA;
+ #if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 1, 0))
+-		netif_napi_add_weight(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_sdma, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add_weight(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_sdma, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #else
+-		netif_napi_add(&nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_sdma, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
++		netif_napi_add(nss_ctx->napi_ndev, &int_ctx->napi, nss_core_handle_napi_sdma, NSS_DATA_COMMAND_BUFFER_PROCESSING_WEIGHT);
+ #endif
+ 		err = request_irq(irq, nss_hal_handle_irq, 0, "nss_profile_dma", int_ctx);
+ 	}
+--- a/nss_hal/nss_hal.c
++++ b/nss_hal/nss_hal.c
+@@ -295,12 +295,17 @@ int nss_hal_probe(struct platform_device
+ 	}
+ 
+ 	/*
+-	 * Initialize the dummy netdevice.
++	 * Allocate the dummy netdevice.
+ 	 */
+-	init_dummy_netdev(&nss_ctx->napi_ndev);
++	nss_ctx->napi_ndev = alloc_netdev_dummy(0);
++	if (!nss_ctx->napi_ndev) {
++		nss_info_always("%px: dummy netdev allocation failed\n", nss_ctx);
++		err = -ENOMEM;
++		goto err_init;
++	}
+ 
+ 	for (i = 0; i < npd->num_irq; i++) {
+-		err = nss_hal_register_irq(nss_ctx, npd, &nss_ctx->napi_ndev, i);
++		err = nss_hal_register_irq(nss_ctx, npd, nss_ctx->napi_ndev, i);
+ 		if (err) {
+ 			goto err_register_irq;
+ 		}
+@@ -750,6 +755,11 @@ err_register_irq:
+ 	}
+ 
+ err_init:
++	if (nss_ctx->napi_ndev) {
++		free_netdev(nss_ctx->napi_ndev);
++		nss_ctx->napi_ndev = NULL;
++	}
++
+ 	if (nss_dev->dev.of_node) {
+ 		if (npd->nmap) {
+ 			iounmap(npd->nmap);
+@@ -791,6 +801,11 @@ int nss_hal_remove(struct platform_devic
+ 		nss_hal_clean_up_irq(&nss_ctx->int_ctx[i]);
+ 	}
+ 
++	if (nss_ctx->napi_ndev) {
++		free_netdev(nss_ctx->napi_ndev);
++		nss_ctx->napi_ndev = NULL;
++	}
++
+ 	/*
+ 	 * nss-drv is exiting, unregister and restore host data plane
+ 	 */

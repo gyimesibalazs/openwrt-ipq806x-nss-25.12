@@ -1,0 +1,71 @@
+--- a/ipq806x/nss_gmac_ctrl.c
++++ b/ipq806x/nss_gmac_ctrl.c
+@@ -924,6 +924,7 @@ static int32_t nss_gmac_set_features(str
+ 		nss_gmac_ipc_offload_init(gmacdev);
+ 	}
+ 
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 13, 0))
+ 	if (changed & NETIF_F_GRO) {
+ 		if (!(features & NETIF_F_GRO)) {
+ #if (LINUX_VERSION_CODE <= KERNEL_VERSION(3, 6, 0))
+@@ -933,6 +934,7 @@ static int32_t nss_gmac_set_features(str
+ #endif
+ 		}
+ 	}
++#endif
+ 
+ 	return 0;
+ }
+@@ -992,6 +994,22 @@ static int32_t nss_gmac_phy_fixup(struct
+ 	return ret;
+ }
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0))
++/*
++ * nss_gmac_phy_fixup_uid()
++ *	phy_register_fixup() is no longer exported. Register the fixup by
++ *	bus id only and do the PHY UID match it used to do here.
++ */
++static int nss_gmac_phy_fixup_uid(struct phy_device *phydev)
++{
++	if ((phydev->phy_id & NSS_GMAC_PHY_FIXUP_MASK) !=
++	    (NSS_GMAC_PHY_FIXUP_UID & NSS_GMAC_PHY_FIXUP_MASK))
++		return 0;
++
++	return nss_gmac_phy_fixup(phydev);
++}
++#endif
++
+ #ifdef CONFIG_OF
+ /**
+  * @brief Get device data via device tree node
+@@ -1406,10 +1424,15 @@ static int32_t nss_gmac_probe(struct pla
+ 	 * register PHY fixup
+ 	 */
+ 	if (gmacdev->phy_base != NSS_GMAC_NO_MDIO_PHY) {
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 13, 0))
+ 		ret = phy_register_fixup((const char *)phy_id,
+ 				NSS_GMAC_PHY_FIXUP_UID,
+ 				NSS_GMAC_PHY_FIXUP_MASK,
+ 				&nss_gmac_phy_fixup);
++#else
++		ret = phy_register_fixup_for_id((const char *)phy_id,
++				&nss_gmac_phy_fixup_uid);
++#endif
+ 		if (ret	!= 0) {
+ 			netdev_dbg(netdev, "PHY fixup register Error.\n");
+ 			goto nss_gmac_phy_attach_fail;
+--- a/ipq806x/nss_gmac_tx_rx_offload.c
++++ b/ipq806x/nss_gmac_tx_rx_offload.c
+@@ -952,7 +952,11 @@ int nss_gmac_open(struct net_device *net
+ 		netif_napi_add(netdev, &gmacdev->napi, nss_gmac_poll,
+ 							NSS_GMAC_NAPI_BUDGET);
+ #endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 17, 0))
++		dev_set_threaded(netdev, NETDEV_NAPI_THREADED_ENABLED);
++#else
+ 		dev_set_threaded(netdev, true);
++#endif
+ 		/* Initial the RX/TX ring */
+ 		dma_set_coherent_mask(dev, 0xffffffff);
+ 		nss_gmac_setup_rx_desc_queue(gmacdev, dev,

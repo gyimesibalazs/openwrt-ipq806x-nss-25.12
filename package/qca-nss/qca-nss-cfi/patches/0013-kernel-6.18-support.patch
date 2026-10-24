@@ -1,0 +1,13 @@
+--- a/cryptoapi/v1.1/nss_cryptoapi_private.h
++++ b/cryptoapi/v1.1/nss_cryptoapi_private.h
+@@ -19,6 +19,10 @@
+ #ifndef __NSS_CRYPTOAPI_PRIVATE_H
+ #define __NSS_CRYPTOAPI_PRIVATE_H
+ 
++#include <crypto/skcipher.h>
++#include <crypto/aead.h>
++#include <crypto/hash.h>
++
+ /**
+  * nss_cryptoapi.h
+  *	Cryptoapi (Linux Crypto API framework) specific nss cfi header file
