@@ -205,6 +205,14 @@ logs, register dumps and packet captures.
   - Problem: in the VLAN table, egress mode 0 means "member, unmodified", so a
     new all-zero entry made every port a member.
   - Fix: new entries start with no members.
+- **Multi-register reads**
+  ([kernel patch 714](target/linux/generic/pending-6.12/714-net-dsa-qca8k-fix-the-MDIO-bulk-read-offset.patch)).
+  - Problem: without the QCA header there is no register access over
+    Ethernet, so every bulk read falls back to MDIO, and that fallback stored
+    the registers one byte apart. The FDB dump, the FDB search and the
+    multicast (MDB) entries read garbage. The bug is in mainline too; it was
+    pointed out on the OpenWrt forum.
+  - Fix: the buffer is indexed as 32-bit words.
 
 **NSS drivers:**
 
