@@ -1,0 +1,27 @@
+From: Gyimesi Balázs <gyimesi.balazs@gmail.com>
+Subject: net: dsa: qca8k: fix the MDIO bulk read offset
+
+qca8k_bulk_read() falls back to reading the registers one by one over
+MDIO when no management conduit is available. It stores register i at
+val_buf + i, and val_buf is a void pointer, so the words land one byte
+apart and overwrite each other. Every multi-register read is then
+garbage: the ARL table read used by the FDB dump, the FDB search and
+the MDB insert/delete.
+
+With the QCA header the reads mostly go over Ethernet, so the fallback
+is rarely taken. With tag_8021q there is no management conduit and
+every bulk read takes it.
+
+Index the buffer as an array of u32.
+---
+--- a/drivers/net/dsa/qca/qca8k-8xxx.c
++++ b/drivers/net/dsa/qca/qca8k-8xxx.c
+@@ -516,7 +516,7 @@ qca8k_bulk_read(void *ctx, const void *r
+ 
+ 	/* loop count times and increment reg of 4 */
+ 	for (i = 0; i < count; i++, reg += sizeof(u32)) {
+-		ret = qca8k_read_mii(priv, reg, val_buf + i);
++		ret = qca8k_read_mii(priv, reg, (u32 *)val_buf + i);
+ 		if (ret < 0)
+ 			return ret;
+ 	}
