@@ -1,0 +1,467 @@
+#!/bin/sh
+# nss-status: one-shot health report for the NSS offload data plane on
+# ipq806x: the NSS GMACs, and the QCA8337 behind them on DSA with the
+# qca-8021q tagger.
+#
+# Same interface as nss-status from nss-tools on qualcommax (ipq807x,
+# ipq60xx, ipq50xx): human-readable by default, -j emits the same JSON (used
+# by the LuCI status page), -d/--debug appends a diagnostics snapshot, -l2
+# prints the per-port datapath. Keys that only exist on ipq806x are added
+# next to the common ones, never in their place. Read-only: safe to run at
+# any time.
+
+# Every path the report reads hangs off one prefix, empty on the router. Point
+# it at an unpacked support capture to read that box's state on a workstation.
+R="${NSS_STATUS_ROOT:-}"
+
+DRV=$R/sys/kernel/debug/qca-nss-drv/stats
+ECM=$R/sys/kernel/debug/ecm
+NET=$R/sys/class/net
+MOD=$R/sys/module
+
+JSON=0
+DEBUG=0
+L2=0
+case "$1" in
+	-j) JSON=1 ;;
+	-d|--debug) DEBUG=1 ;;
+	-l2) L2=1 ;;
+esac
+
+mod() { [ -d "$MOD/$1" ] && echo 1 || echo 0; }
+nstat() { cat "$NET/$1/statistics/$2" 2>/dev/null || echo 0; }
+
+# --- collect ---------------------------------------------------------------
+
+# Both cores run from the same build; qca-nss0.bin carries the version string.
+fw_version=$(grep -aom1 'NSS\.[A-Z][A-Z]*\.[0-9][0-9A-Za-z.-]*' \
+	"$R/lib/firmware/qca-nss0.bin" 2>/dev/null)
+[ -n "$fw_version" ] || fw_version="unknown"
+
+# The GMAC behind a netdev, which is also its NSS physical interface number:
+# GMAC0..3 sit at 0x37000000 + n * 0x200000 on ipq8064 and ipq8065.
+gmac_index() {
+	case "$(readlink "$NET/$1/device/driver" 2>/dev/null)" in
+	*/nss-gmac) ;;
+	*) return ;;
+	esac
+	case "$(readlink "$NET/$1/device" 2>/dev/null)" in
+	*/37000000.ethernet) echo 0 ;;
+	*/37200000.ethernet) echo 1 ;;
+	*/37400000.ethernet) echo 2 ;;
+	*/37600000.ethernet) echo 3 ;;
+	esac
+}
+
+# The DSA user ports a conduit carries: its uppers with a phys_switch_id.
+user_ports() {
+	local u p
+	for u in "$NET/$1"/upper_*; do
+		[ -e "$u" ] || continue
+		p=${u##*/upper_}
+		[ -n "$(cat "$NET/$p/phys_switch_id" 2>/dev/null)" ] && echo "$p"
+	done
+}
+
+gmacs=""
+for d in "$NET"/*; do
+	n=${d##*/}
+	i=$(gmac_index "$n")
+	[ -n "$i" ] && gmacs="$gmacs $i:$n"
+done
+
+# The firmware owns every GMAC that is up once qca-nss-drv is loaded; without
+# it nss-gmac falls back to its own DMA (the slow path) and nothing is armed.
+fw_mask=0
+if [ -d "$MOD/qca_nss_drv" ] && [ -r "$DRV/n2h" ]; then
+	for e in $gmacs; do
+		flags=$(cat "$NET/${e#*:}/flags" 2>/dev/null || echo 0)
+		[ $(( flags & 1 )) -ne 0 ] && fw_mask=$(( fw_mask | (1 << ${e%%:*}) ))
+	done
+fi
+fw_mask=$(printf '0x%x' "$fw_mask")
+
+n2h_sum() { awk '$1 == "n2h_rx_pkts" {s += $3} END {print s + 0}' "$DRV/n2h" 2>/dev/null; }
+
+heartbeat=0
+if [ -r "$DRV/n2h" ]; then
+	a=$(n2h_sum); sleep 1; b=$(n2h_sum)
+	heartbeat=$((b - a))
+fi
+
+# "Core N:" then a Min/Avg/Max percent line; keep the Avg column per core.
+core_loads=$(awk '/^Core [0-9]+:/ {c=$2; sub(":","",c)}
+	/%/ {gsub("%",""); print c":"$2}' "$DRV/cpu_load_ubi" 2>/dev/null)
+
+# Wire totals of a switch port, from the QCA8337 MIB behind 'ethtool -S'.
+# The port netdev's own counters are software counters on qca8k (it has no
+# get_stats64), so they count only what passed through the host.
+# -> "<tx> <rx> <rx_fcs_errors>"
+switch_mib() {
+	ethtool -S "$1" 2>/dev/null | awk '
+		$1 == "TXUnicast:" || $1 == "TxMulti:" || $1 == "TxBroad:" {tx += $2}
+		$1 == "RXUnicast:" || $1 == "RxMulti:" || $1 == "RxBroad:" {rx += $2}
+		$1 == "RxFcsErr:" {fcs = $2}
+		END {print tx + 0, rx + 0, fcs + 0}'
+}
+
+# One line per GMAC:
+# ifnum netdev started host_tx host_rx tx_total rx_total crc rx_missed conduit
+#
+# The netdev counters of an NSS GMAC are the MAC statistics the firmware syncs
+# up, so they count every frame on the wire. On a DSA conduit, what the host
+# exchanged with the firmware is what passed through the user ports: their
+# counters are software counters (see switch_mib), so their sum is the host
+# side of the port. What the firmware forwarded on its own - the offloaded
+# share - is the difference. A GMAC that is not a conduit has no such split
+# and is counted as all host, so it never reads as offloaded by mistake.
+ports=$(for e in $gmacs; do
+	i=${e%%:*}
+	nd=${e#*:}
+	st=$(cat "$NET/$nd/carrier" 2>/dev/null || echo 0)
+	ttx=$(nstat "$nd" tx_packets)
+	trx=$(nstat "$nd" rx_packets)
+	htx=$ttx
+	hrx=$trx
+	conduit=0
+	if [ -d "$NET/$nd/dsa" ]; then
+		conduit=1
+		htx=0
+		hrx=0
+		for p in $(user_ports "$nd"); do
+			htx=$((htx + $(nstat "$p" tx_packets)))
+			hrx=$((hrx + $(nstat "$p" rx_packets)))
+		done
+	fi
+	crc=$(nstat "$nd" rx_crc_errors)
+	missed=$(ethtool -S "$nd" 2>/dev/null | awk '$1 == "rx_missed:" {print $2}')
+	echo "$i $nd $st $htx $hrx $ttx $trx ${crc:-0} ${missed:-0} $conduit"
+done | LC_ALL=C awk '{
+	otx = $6 - $4; orx = $7 - $5
+	if (otx < 0) otx = 0
+	if (orx < 0) orx = 0
+	ptx = ($6 > 0) ? 100 * otx / $6 : 0
+	prx = ($7 > 0) ? 100 * orx / $7 : 0
+	printf "%s %s %s %s %s %s %s %d %d %.1f %.1f %s %s %s\n",
+	       $1, $2, $3, $4, $5, $6, $7, otx, orx, ptx, prx, $8, $9, $10
+}')
+
+# dsa_ports: netdev carrier tx_total rx_total host_tx host_rx rx_fcs conduit
+dsa_ports=$(for e in $gmacs; do
+	nd=${e#*:}
+	[ -d "$NET/$nd/dsa" ] || continue
+	for p in $(user_ports "$nd"); do
+		echo "$p $(cat "$NET/$p/carrier" 2>/dev/null || echo 0)" \
+		     "$(switch_mib "$p" | awk '{print $1, $2}')" \
+		     "$(nstat "$p" tx_packets) $(nstat "$p" rx_packets)" \
+		     "$(switch_mib "$p" | awk '{print $3}') $nd"
+	done
+done)
+
+tagging=""
+for e in $gmacs; do
+	t=$(cat "$NET/${e#*:}/dsa/tagging" 2>/dev/null) && { tagging=$t; break; }
+done
+crc_total=$(echo "$ports" | awk '{s += $12} END {print s + 0}')
+fcs_total=$(echo "$dsa_ports" | awk '{s += $7} END {print s + 0}')
+
+ecm_loaded=$(mod ecm)
+ecm_v4=$(cat "$ECM/ecm_nss_ipv4/accelerated_count" 2>/dev/null || echo 0)
+ecm_v6=$(cat "$ECM/ecm_nss_ipv6/accelerated_count" 2>/dev/null || echo 0)
+ecm_mc=$(( $(cat "$ECM/ecm_nss_ipv4/multicast_accelerated_count" 2>/dev/null || echo 0) +
+	$(cat "$ECM/ecm_nss_ipv6/multicast_accelerated_count" 2>/dev/null || echo 0) ))
+# An nft flowtable forwards an established flow from its ingress hook, ahead of
+# the netfilter hooks ECM classifies from, so ECM never sees the flow and the
+# firmware exceptions every packet of it to the host.
+flowtables=$(nft list flowtables 2>/dev/null | grep -c '^[[:space:]]*flowtable ')
+
+bridge_mgr=$(mod qca_nss_bridge_mgr)
+pppoe_mgr=$(mod qca_nss_pppoe)
+
+# There is no ath11k here: the ath10k radios hand their frames to the firmware
+# through NSS virtual interfaces (the Wi-Fi redirect), one per AP/STA netdev.
+# wifi_offload stays -1, as on a qualcommax box without ath11k; the redirect
+# has a key of its own.
+wifi_offload=$(cat "$MOD/ath11k/parameters/nss_offload" 2>/dev/null || echo -1)
+redirect=$(awk '
+	/^if_num [0-9]+ stats start:/ {n++}
+	$1 == "tx_packets" {tx += $3}
+	$1 == "rx_packets" {rx += $3}
+	END {print n + 0, tx + 0, rx + 0}' "$DRV/virt_if" 2>/dev/null)
+[ -n "$redirect" ] || redirect="0 0 0"
+set -- $redirect
+redir_if=$1
+redir_tx=$2
+redir_rx=$3
+
+# The SQM queue section the NSS shaper serves: first enabled queue section,
+# else the first one.
+sqm_sec=""
+for s in $(uci -q show sqm | sed -n "s/^sqm\.\([^.=]*\)=queue$/\1/p"); do
+	[ -n "$sqm_sec" ] || sqm_sec=$s
+	[ "$(uci -q get "sqm.$s.enabled")" = "1" ] && { sqm_sec=$s; break; }
+done
+sqm_dev=""
+[ -n "$sqm_sec" ] && sqm_dev=$(uci -q get "sqm.${sqm_sec}.interface")
+# With no queue enabled the section above is just the first one, often the
+# stock entry: naming its device in the report reads as if SQM were meant to
+# run there.
+sqm_enabled=0
+[ -n "$sqm_sec" ] && [ "$(uci -q get "sqm.${sqm_sec}.enabled")" = "1" ] && sqm_enabled=1
+
+# nss-rk.qos shapes upload on the GMAC itself and download on nssifb; it
+# refuses anything but an eth device, so there is no conduit to walk to.
+sqm_phys=$sqm_dev
+sqm_lanes=0
+sqm_active=0
+[ -n "$sqm_phys" ] && tc qdisc show dev "$sqm_phys" 2>/dev/null | grep -q nsstbl && sqm_active=1
+
+# An NSS tree forwards nothing until one leaf is marked as its default
+# destination. A root left without one is the shape a failed or interrupted
+# shaper build leaves behind: the link stays up, the carrier stays set, tc
+# still lists a shaper, and every packet is dropped.
+sqm_dropping=""
+for d in $sqm_phys nssifb; do
+	tc qdisc show dev "$d" 2>/dev/null | head -n1 | grep -q '^qdisc nss\(tbl\|prio\) ' || continue
+	tc qdisc show dev "$d" 2>/dev/null | grep -q set_default || sqm_dropping="$sqm_dropping $d"
+done
+
+state=host
+if [ "$fw_mask" != "0x0" ]; then
+	if [ "$heartbeat" -gt 0 ]; then
+		state=active
+	else
+		state=stalled
+	fi
+fi
+
+# Kernel log sweep: a WARN/oops anywhere in this boot is worth surfacing even
+# when everything else looks healthy (WARN_ON_ONCE fires once and scrolls away).
+kwarns=$(dmesg 2>/dev/null | grep -c 'cut here')
+koops=$(dmesg 2>/dev/null | grep -cE 'Oops:|BUG:|Kernel panic')
+
+# --- emit ------------------------------------------------------------------
+
+if [ "$JSON" = 1 ]; then
+	pjson=$(echo "$ports" | while read -r ifn nd st htx hrx ttx trx otx orx ptx prx crc missed cd; do
+		[ -n "$ifn" ] || continue
+		printf '{"ifnum":%s,"netdev":"%s","started":%s,"tx_host_pkts":%s,"rx_host_pkts":%s,"tx_total":%s,"rx_total":%s,"tx_offloaded":%s,"rx_offloaded":%s,"tx_offload_pct":%s,"rx_offload_pct":%s,"conduit":%s,"rx_crc_errors":%s,"rx_missed":%s},' \
+			"$ifn" "$nd" "$st" "$htx" "$hrx" "$ttx" "$trx" "$otx" "$orx" "$ptx" "$prx" "$cd" "$crc" "$missed"
+	done)
+	pjson="[${pjson%,}]"
+
+	cjson=""
+	for c in $core_loads; do
+		cjson="$cjson{\"core\":${c%%:*},\"avg\":${c##*:}},"
+	done
+	cjson="[${cjson%,}]"
+
+	sfjson=""
+	for d in $sqm_dropping; do
+		sfjson="$sfjson\"$d\","
+	done
+	sfjson="[${sfjson%,}]"
+
+	djson=$(echo "$dsa_ports" | while read -r nd car ttx trx htx hrx fcs cd; do
+		[ -n "$nd" ] || continue
+		printf '{"netdev":"%s","carrier":%s,"tx_total":%s,"rx_total":%s,"tx_host_pkts":%s,"rx_host_pkts":%s,"rx_fcs_errors":%s,"conduit":"%s"},' \
+			"$nd" "$car" "$ttx" "$trx" "$htx" "$hrx" "$fcs" "$cd"
+	done)
+	djson="[${djson%,}]"
+
+	cat <<-EOF
+	{"state":"$state","fw_version":"$fw_version","fw_mask":"$fw_mask","glue":"gmac",
+	"heartbeat_pps":$heartbeat,"cores":$cjson,"ports":$pjson,"dsa_nodes":[],"dsa_ports":$djson,
+	"ecm":{"loaded":$ecm_loaded,"ipv4_accel":$ecm_v4,"ipv6_accel":$ecm_v6,"multicast_accel":$ecm_mc},
+	"flowtables":$flowtables,
+	"modules":{"bridge_mgr":$bridge_mgr,"pppoe":$pppoe_mgr},
+	"wifi_offload":$wifi_offload,"wifili":[],
+	"wifi_redirect":{"interfaces":$redir_if,"tx_pkts":$redir_tx,"rx_pkts":$redir_rx},
+	"mesh":{"configured":0,"offloaded":0,"fw_capable":0},
+	"switch":{"tagging":"$tagging","rx_crc_errors":$crc_total,"rx_fcs_errors":$fcs_total},
+	"kernel_log":{"warns":$kwarns,"oopses":$koops},
+	"sqm":{"enabled":$sqm_enabled,"active":$sqm_active,"device":"$sqm_dev","shaping_device":"$sqm_phys","lanes":$sqm_lanes,"igs":[],
+	"shaper_fault":$sfjson,
+	"fastlane":{"active":0,"egress_pkts":0,"ingress_pkts":0},
+	"qos_marking_rules":0}}
+	EOF
+	exit 0
+fi
+
+# --- L2 per-port datapath view (-l2) ---------------------------------------
+# Host, firmware and wire counters per GMAC and per switch port. The pointers
+# that localise a stall: CRC errors on a GMAC are damaged frames on the RGMII
+# link from the switch, rx_missed rising is the GMAC's receive FIFO
+# overflowing, and a switch port whose wire RX climbs while its host RX and
+# the conduit's totals stand still is losing frames between the two.
+if [ "$L2" = 1 ]; then
+	echo "NSS L2 datapath, GMACs (wire = MAC counters synced by the firmware):"
+	printf "  %-6s %3s %4s %12s %12s %12s %12s %8s %10s\n" \
+	       port if link "wire tx" "wire rx" "host tx" "host rx" crc rx_missed
+	echo "$ports" | while read -r ifn nd st htx hrx ttx trx otx orx ptx prx crc missed cd; do
+		[ -n "$ifn" ] || continue
+		[ "$st" = 1 ] && st=up || st=down
+		printf "  %-6s %3s %4s %12s %12s %12s %12s %8s %10s\n" \
+		       "$nd" "$ifn" "$st" "$ttx" "$trx" "$htx" "$hrx" "$crc" "$missed"
+	done
+	if [ -n "$dsa_ports" ]; then
+		echo "Switch ports (wire = QCA8337 MIB, host = through the CPU):"
+		printf "  %-6s %-6s %4s %12s %12s %12s %12s %8s\n" \
+		       port conduit link "wire tx" "wire rx" "host tx" "host rx" "rx fcs"
+		echo "$dsa_ports" | while read -r nd car ttx trx htx hrx fcs cd; do
+			[ -n "$nd" ] || continue
+			[ "$car" = 1 ] && car=up || car=down
+			printf "  %-6s %-6s %4s %12s %12s %12s %12s %8s\n" \
+			       "$nd" "$cd" "$car" "$ttx" "$trx" "$htx" "$hrx" "$fcs"
+		done
+	fi
+	echo "  crc on a GMAC = damaged frames from switch port 0/6 over RGMII (MAC_PWR_SEL,"
+	echo "  RGMII delays); rx fcs on a switch port = damaged frames from the cable"
+	exit 0
+fi
+
+echo "NSS offload status: $state"
+echo "  firmware:    $fw_version (fw_mask $fw_mask, heartbeat ${heartbeat} pkts/s)"
+if [ -n "$core_loads" ]; then
+	echo -n "  NSS cores:  "
+	for c in $core_loads; do echo -n " core${c%%:*} ${c##*:}% avg"; done
+	echo ""
+fi
+if [ -n "$ports" ]; then
+	echo "  ports:       offloaded = forwarded by the firmware, never reached the host"
+	printf "    %-6s %3s %3s  %18s %10s  %18s %10s\n" \
+	       "port" "if" "up" "tx offloaded" "via host" "rx offloaded" "to host"
+	echo "$ports" | while read -r ifn nd st htx hrx ttx trx otx orx ptx prx crc missed cd; do
+		[ -n "$ifn" ] || continue
+		printf "    %-6s %3s %3s  %18s %10s  %18s %10s\n" \
+		       "$nd" "$ifn" "$st" "$otx ($ptx%)" "$htx" "$orx ($prx%)" "$hrx"
+	done
+	echo "    (via host / to host = the host<->firmware exception path, i.e. what was"
+	echo "     NOT offloaded: broadcast/multicast discovery, connection setup and"
+	echo "     short-lived flows, and traffic addressed to the router itself. A quiet"
+	echo "     port carries little else, so its share reads low. Per port: nss-status -l2)"
+fi
+echo "  switch:      ${tagging:-no DSA conduit}, CRC errors on the GMACs: $crc_total, FCS errors on the switch ports: $fcs_total"
+echo "  ECM:         loaded=$ecm_loaded, accelerated: $ecm_v4 IPv4 / $ecm_v6 IPv6 / $ecm_mc multicast"
+echo "  modules:     bridge-mgr=$bridge_mgr pppoe-mgr=$pppoe_mgr"
+if [ "$redir_if" -gt 0 ]; then
+	echo "  Wi-Fi:       NSS redirect on $redir_if interfaces ($redir_tx pkts to the firmware, $redir_rx from it)"
+else
+	echo "  Wi-Fi:       host mode (no NSS redirect interface)"
+fi
+if [ "$sqm_active" = 1 ]; then
+	echo "  SQM:         nsstbl shaper on $sqm_dev, download on nssifb"
+	[ -n "$sqm_dropping" ] && echo "  SHAPER FAULT: no default leaf below the NSS root on:$sqm_dropping - those devices are dropping every packet they are given (link stays up)"
+elif [ "$sqm_enabled" = 1 ]; then
+	echo "  SQM:         no NSS shaper${sqm_dev:+ on $sqm_dev}"
+else
+	echo "  SQM:         off (no queue enabled in /etc/config/sqm)"
+fi
+if [ "$kwarns" -gt 0 ] || [ "$koops" -gt 0 ]; then
+	echo "  kernel log:  $kwarns WARN / $koops oops this boot - see 'nss-status -d' or dmesg"
+else
+	echo "  kernel log:  clean (no WARN/oops this boot)"
+fi
+case "$state" in
+	active)  if [ "$flowtables" -gt 0 ]; then
+	             echo "  verdict:     FIRMWARE ARMED BUT AN NFT FLOWTABLE FORWARDS ESTABLISHED FLOWS AHEAD OF ECM - set firewall.@defaults[0].flow_offloading{,_hw}='0'"
+	         elif [ "$crc_total" -gt 0 ]; then
+	             echo "  verdict:     OFFLOAD ACTIVE, BUT THE GMACS SEE CRC ERRORS FROM THE SWITCH - see 'nss-status -l2'"
+	         else
+	             echo "  verdict:     OFFLOAD ACTIVE"
+	         fi ;;
+	stalled) echo "  verdict:     FIRMWARE ARMED BUT HEARTBEAT SILENT - check logread; reboot returns to the host stack" ;;
+	host)    echo "  verdict:     host stack (NSS plane not armed - qca-nss-drv not loaded or no GMAC up)" ;;
+esac
+
+[ "$DEBUG" = 1 ] || exit 0
+
+# --- debug snapshot (-d) -----------------------------------------------------
+# Every source is optional: with the NSS plane down most of these do not exist.
+
+sec() {
+	echo ""
+	echo "=== $1 ==="
+}
+
+# The nonzero counters of a qca-nss-drv stats file, with the if_num headers
+# that tell the blocks of a per-interface file apart.
+nonzero() {
+	[ -r "$1" ] || return 1
+	awk '/^if_num [0-9]+ stats start/ || ($2 == "=" && $3 + 0 > 0)' "$1"
+}
+
+sec "firmware driver errors ($DRV/drv, nonzero error counters)"
+if [ -r "$DRV/drv" ]; then
+	awk '$4 == "error" && $3 + 0 > 0' "$DRV/drv"
+	echo "(end)"
+else
+	echo "(not available - qca-nss-drv not loaded)"
+fi
+
+sec "N2H (firmware-to-host) statistics ($DRV/n2h, one block per core)"
+if [ -r "$DRV/n2h" ]; then
+	awk '/N2H/ { core++ } $2 == "=" && $3 + 0 > 0 { print "core" core - 1 "." $1 " = " $3 }' "$DRV/n2h"
+else
+	echo "(not available - qca-nss-drv not loaded)"
+fi
+
+sec "packets the firmware passed to the host unprocessed ($DRV/eth_rx)"
+nonzero "$DRV/eth_rx" || echo "(not available)"
+
+sec "Wi-Fi redirect interfaces ($DRV/virt_if)"
+nonzero "$DRV/virt_if" || echo "(not available)"
+
+sec "GMAC counters (ethtool -S, nonzero)"
+for e in $gmacs; do
+	echo "  ${e#*:} (GMAC${e%%:*}):"
+	ethtool -S "${e#*:}" 2>/dev/null | awk '$2 + 0 > 0 {printf "    %-40s %s\n", $1, $2}'
+done
+
+sec "switch port error counters (ethtool -S, nonzero)"
+echo "$dsa_ports" | while read -r nd rest; do
+	[ -n "$nd" ] || continue
+	hits=$(ethtool -S "$nd" 2>/dev/null | awk '
+		$1 ~ /Fcs|Align|Runt|Fragment|TooLong|OverFlow|UnderRun|OverSize|AbortCol|LateCol|ExcDefer/ &&
+		$2 + 0 > 0 {printf "    %-40s %s\n", $1, $2}')
+	echo "  $nd:"
+	echo "${hits:-    (none)}"
+done
+
+sec "firmware log ring (${DRV%/stats}/logs)"
+# Empty on a healthy box, so anything in here at all is worth reading.
+found=0
+for c in "${DRV%/stats}"/logs/core*; do
+	[ -r "$c" ] || continue
+	found=1
+	if [ -s "$c" ]; then
+		echo "  $(basename "$c"):"
+		tail -60 "$c" 2>/dev/null
+	else
+		echo "  $(basename "$c"): empty"
+	fi
+done
+[ "$found" = 1 ] || echo "(not available - qca-nss-drv not loaded)"
+
+sec "ECM connection totals ($ECM)"
+if [ -d "$ECM" ]; then
+	for f in ecm_db/connection_count \
+		 ecm_nss_ipv4/accelerated_count ecm_nss_ipv4/pending_accel_count \
+		 ecm_nss_ipv4/pending_decel_count \
+		 ecm_nss_ipv6/accelerated_count ecm_nss_ipv6/pending_accel_count \
+		 ecm_nss_ipv6/pending_decel_count; do
+		[ -r "$ECM/$f" ] && echo "$f: $(cat "$ECM/$f" 2>/dev/null)"
+	done
+else
+	echo "(not available - ecm not loaded)"
+fi
+
+sec "kernel warnings/oopses this boot (dmesg)"
+if [ "$kwarns" -gt 0 ] || [ "$koops" -gt 0 ]; then
+	dmesg 2>/dev/null | grep -B2 -A44 -E 'cut here|Oops:|BUG:|Kernel panic' | tail -150
+else
+	echo "(none)"
+fi
+
+sec "recent NSS, GMAC and switch kernel messages (dmesg)"
+dmesg 2>/dev/null | grep -iE 'nss|gmac|qca8k|dsa' | tail -40
