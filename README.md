@@ -76,7 +76,7 @@ commit, so this branch descends from OpenWrt 25.12, not from the 24.10 fork.
   - the mac80211 NSS redirect patch was refreshed for backports 6.18;
   - the ath10k-ct patches were retargeted to the `ath10k-6.18` tree;
   - the wifi-script tweaks were moved to the ucode scripts.
-- **LuCI:** the VHT/QAM-256 on 2.4 GHz and NSS-load status patches are in
+- **LuCI:** the VHT/QAM-256 on 2.4 GHz patch is in
   `VHTNSS.zip`.
 - **Branding:** images are named `openwrt-nss-…` and report
   `OpenWrt NSS 25.12.6`.
