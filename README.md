@@ -336,6 +336,28 @@ The shaper holds the set rate with no CPU load, and ECM keeps the flows
 accelerated. In this test setup the line itself is never the bottleneck, so
 the latency benefit on a slower uplink has not been measured.
 
+## NSS status page
+
+`nss-status` (package `nss-tools`) reports the state of the NSS data plane:
+firmware and heartbeat, NSS core load, the offloaded share per GMAC, the
+switch ports, CRC errors on the GMACs and FCS errors on the switch ports, ECM,
+the Wi-Fi redirect and the NSS SQM shaper. `nss-status -l2` lists the
+counters per port, `nss-status -d` adds a diagnostics snapshot to attach to a
+bug report.
+
+It has the interface of `nss-status` from the qualcommax NSS builds
+([kuncy7/openwrt-nss-edma](https://github.com/kuncy7/openwrt-nss-edma)): the
+same options and JSON, with the ipq806x data in keys of their own. Their
+`luci-app-nss` is included with additions for ipq806x: **Status → NSS
+Offload** shows the report, a switch port table and the link errors, and runs
+the diagnostics reports; **Status → Overview** gets the NSS core load, the
+ECM-accelerated connections and the SoC temperatures.
+
+The offloaded share of a GMAC is its total traffic minus what passed through
+the host on its switch ports: the GMAC counters are synced by the firmware and
+count every frame, the qca8k port counters only count what went through the
+CPU.
+
 ## Building
 
 Build on a Debian or Ubuntu host with the
