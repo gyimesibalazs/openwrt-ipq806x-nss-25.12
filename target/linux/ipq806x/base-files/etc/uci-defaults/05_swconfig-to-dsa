@@ -3,12 +3,20 @@
 # Boards that moved from swconfig to DSA (qca-8021q tagging) keep their
 # network config across sysupgrade. Convert a swconfig config to the DSA
 # ports: every switch VLAN device (eth1.1, eth0.2, ...) is replaced by
-# the DSA ports that were untagged members of that VLAN. Interfaces,
-# addresses and bridge options are kept.
+# the DSA ports that were members of that VLAN. Interfaces, addresses
+# and bridge options are kept.
 #
-# Setups with tagged user ports (trunks) cannot be converted this way.
-# Their config is moved to network.swconfig and the defaults are
-# generated instead.
+# Each switch VLAN is converted one of three ways:
+# - every member port is the only port of all its VLANs: the port itself
+#   (untagged) or a VLAN upper of it (tagged, e.g. wan.35)
+# - untagged ports that are in no other VLAN: the list of those ports
+# - anything else (trunks): a VLAN of one VLAN-aware bridge, br-lan.<vid>,
+#   with a bridge-vlan section per VLAN. A bridge that only carried such a
+#   VLAN is dropped and its users move to br-lan.<vid>.
+#
+# NSS accelerates the first two. Traffic through a VLAN-aware bridge goes
+# through the host. Configs that cannot be converted are moved to
+# network.swconfig and the defaults are generated instead.
 
 . /lib/functions.sh
 
@@ -34,6 +42,17 @@ convert() {
 	awk -v ports="$ports" -v cpus="$cpus" '
 	function q(s) { gsub(/^'\''|'\''$/, "", s); return s }
 
+	# the value of an option or list line, without quotes
+	function val(l) {
+		sub(/^[ \t]*[a-z]+[ \t]+[^ \t]+[ \t]+/, "", l)
+		return q(l)
+	}
+
+	# awk runs END after exit, so the failure has to be remembered
+	function fail() { failed = 1; exit 2 }
+
+	function put(key, value) { print "\t" key " '\''" value "'\''" }
+
 	BEGIN {
 		n = split(ports, a, " ")
 		for (i = 1; i <= n; i++) { split(a[i], b, ":"); dsa[b[1]] = b[2] }
@@ -41,50 +60,222 @@ convert() {
 		for (i = 1; i <= n; i++) { split(a[i], b, ":"); cpu[b[1]] = b[2] }
 	}
 
-	# first pass: the switch VLANs
-	NR == FNR {
-		if ($1 == "config") { sec = $2; vid = ""; vports = "" }
-		if (sec == "switch_vlan" && $1 == "option") {
-			if ($2 == "vlan" && vid == "") vid = q($3)
-			if ($2 == "vid") vid = q($3)
-			if ($2 == "ports") { $1 = $2 = ""; vports = q(substr($0, 3)) }
-		}
-		if (sec == "switch_vlan" && vid != "" && vports != "") {
-			dev = ""; members = ""
-			n = split(vports, p, " ")
+	# first pass: collect the switch VLANs and the bridges
+	function collect(    i, n, p, port, tagged) {
+		if (stype == "switch_vlan" && svports != "") {
+			nv++
+			vvid[nv] = (svid != "" ? svid : svlan) + 0
+			n = split(svports, p, " ")
 			for (i = 1; i <= n; i++) {
 				port = p[i]; tagged = sub(/t$/, "", port)
 				if (port in cpu) {
-					dev = cpu[port] (tagged ? "." vid : "")
+					vdev[nv] = cpu[port] (tagged ? "." vvid[nv] : "")
 				} else if (port in dsa) {
-					if (tagged || (port in used)) exit 2
-					used[port] = 1
-					members = members " " dsa[port]
+					port = dsa[port]
+					vmem[nv] = vmem[nv] " " port
+					if (tagged) vtag[nv, port] = 1
+					pcount[port]++
 				}
 			}
-			if (dev != "") map[dev] = substr(members, 2)
-			vid = ""; vports = ""
+			vmem[nv] = substr(vmem[nv], 2)
 		}
+		if (stype == "device" && sbtype == "bridge" && sname != "") {
+			nb++
+			bname[nb] = sname
+			bports[nb] = substr(sbports, 2)
+			bplain[nb] = splain
+		}
+	}
+
+	NR == FNR {
+		if ($1 == "config") {
+			collect()
+			stype = $2
+			svid = svlan = svports = sname = sbtype = sbports = ""
+			splain = 1
+			next
+		}
+		if ($1 == "option" && $2 == "vlan") svlan = val($0)
+		if ($1 == "option" && $2 == "vid") svid = val($0)
+		if ($1 == "option" && $2 == "ports") svports = val($0)
+		if ($1 == "option" && $2 == "name") sname = val($0)
+		if ($1 == "option" && $2 == "type") sbtype = val($0)
+		if ($1 == "list" && $2 == "ports") sbports = sbports " " val($0)
+		if (($1 == "option" || $1 == "list") &&
+		    $2 !~ /^(name|type|ports|bridge_empty)$/)
+			splain = 0
 		next
 	}
 
-	# second pass: rewrite the config
-	$1 == "config" { skip = ($2 ~ /^switch/) }
-	skip { next }
-
-	$1 == "list" && $2 == "ports" && (q($3) in map) {
-		n = split(map[q($3)], m, " ")
-		for (i = 1; i <= n; i++) print "\tlist ports '\''" m[i] "'\''"
-		next
+	# a port that is the only port of every VLAN it is in
+	function solo(port,    k) {
+		for (k = 1; k <= nv; k++)
+			if (index(" " vmem[k] " ", " " port " ") && vmem[k] != port)
+				return 0
+		return 1
 	}
 
-	($1 == "option" || $1 == "list") && ($2 == "device" || $2 == "ifname" || $2 == "name") && (q($3) in map) {
-		if (split(map[q($3)], m, " ") != 1) exit 2
-		print "\t" $1 " " $2 " '\''" m[1] "'\''"
-		next
+	# DSA ports by name (lan1, lan2, ..., wan)
+	function sorted(list,    a, n, i, j, t) {
+		n = split(list, a, " ")
+		for (i = 2; i <= n; i++)
+			for (j = i; j > 1 && a[j - 1] > a[j]; j--) {
+				t = a[j]; a[j] = a[j - 1]; a[j - 1] = t
+			}
+		t = ""
+		for (i = 1; i <= n; i++) t = t " " a[i]
+		return substr(t, 2)
 	}
 
-	{ print }
+	function plan(    k, i, n, m, p, x, b, vb, simple, kind) {
+		collect()
+		for (k = 1; k <= nv; k++) {
+			n = split(vmem[k], m, " ")
+			kind = "solo"; simple = 1
+			for (i = 1; i <= n; i++) {
+				if (!solo(m[i])) kind = ""
+				if (vtag[k, m[i]] || pcount[m[i]] > 1) simple = 0
+			}
+			if (kind == "") kind = simple ? "simple" : "trunk"
+			vkind[k] = kind
+
+			if (kind == "solo" && n == 1 && vtag[k, m[1]]) {
+				# the tagger finds a standalone port from the VID
+				if (vvid[k] in uppervid) fail()
+				uppervid[vvid[k]] = 1
+			}
+			if (kind == "solo" && n == 1 && vdev[k] != "")
+				map[vdev[k]] = vtag[k, m[1]] ? m[1] "." vvid[k] : m[1]
+			else if (kind != "trunk" && vdev[k] != "")
+				map[vdev[k]] = sorted(vmem[k])
+
+			if (kind == "trunk") {
+				# 3072-4095 belong to the tagger
+				if (vvid[k] < 1 || vvid[k] > 3071) fail()
+				ntrunk++
+				trunks = trunks " " k
+				for (i = 1; i <= n; i++) vbport[m[i]] = 1
+				if (vdev[k] != "") cmap[vdev[k]] = vvid[k]
+			}
+		}
+		if (!ntrunk) return
+
+		for (k = 1; k <= nv; k++)
+			if (vkind[k] == "trunk" && vvid[k] in uppervid) fail()
+
+		# the VLAN-aware bridge: the bridge that held a trunk VLAN,
+		# br-lan first, or a new one
+		for (b = 1; b <= nb; b++) {
+			n = split(bports[b], p, " ")
+			for (i = 1; i <= n; i++) if (p[i] in cmap) break
+			if (i > n) continue
+			if (vb == "" || bname[b] == "br-lan") vb = b
+		}
+		if (vb != "") {
+			VB = bname[vb]
+			n = split(bports[vb], p, " ")
+			for (i = 1; i <= n; i++) {
+				if (p[i] in map) fail()
+				if (!(p[i] in cmap)) {
+					vbextra = vbextra " " p[i]
+					continue
+				}
+				# two switch VLANs in one bridge cannot be kept apart
+				if (VBVID != "") fail()
+				VBVID = cmap[p[i]]
+			}
+		} else {
+			VB = "br-lan"
+			for (b = 1; b <= nb; b++) if (bname[b] == VB) VB = "br-vlan"
+			newvb = 1
+		}
+
+		# bridges that only carried a trunk VLAN are dropped
+		for (b = 1; b <= nb; b++)
+			if (b != vb && bplain[b] && bports[b] in cmap)
+				redirect[bname[b]] = VB "." cmap[bports[b]]
+
+		for (x in vbport) vbports = vbports " " x
+		vbports = sorted(substr(vbports, 2))
+	}
+
+	FNR == 1 { plan() }
+
+	# the name of a device in the DSA config
+	function dev(name) {
+		if (name in redirect) return redirect[name]
+		if (name in cmap) return VB "." cmap[name]
+		if (name == VB && VBVID != "") return VB "." VBVID
+		if (name in map) return map[name]
+		return name
+	}
+
+	# second pass: rewrite the config, one section at a time
+	function flush(    i, k, n, m, v, rec, skip, isvb) {
+		rec = $0
+		skip = stype ~ /^switch/ || sname in redirect
+		isvb = stype == "device" && sname == VB && !newvb
+		for (i = 1; i <= nl && !skip; i++) {
+			$0 = line[i]
+			v = val($0)
+			if ($1 == "list" && $2 == "ports" && isvb && (v in cmap)) {
+				n = split(vbports, m, " ")
+				for (k = 1; k <= n; k++) put("list ports", m[k])
+			} else if ($1 == "list" && $2 == "ports" && (v in map)) {
+				n = split(map[v], m, " ")
+				for (k = 1; k <= n; k++) put("list ports", m[k])
+			} else if (($1 == "option" || $1 == "list") &&
+			    $2 ~ /^(device|ifname|name|ports)$/ &&
+			    !(isvb && $2 == "name") && dev(v) != v) {
+				if ((v in map) && split(map[v], m, " ") != 1) fail()
+				put($1 " " $2, dev(v))
+			} else {
+				print
+			}
+		}
+		nl = 0
+		$0 = rec
+	}
+
+	$1 == "config" {
+		flush()
+		stype = $2; sname = ""
+	}
+	$1 == "option" && $2 == "name" { sname = val($0) }
+	{ line[++nl] = $0 }
+
+	END {
+		if (failed) exit 2
+		flush()
+		if (!ntrunk) exit 0
+
+		if (newvb) {
+			print ""
+			print "config device"
+			put("option name", VB)
+			put("option type", "bridge")
+			n = split(vbports, m, " ")
+			for (i = 1; i <= n; i++) put("list ports", m[i])
+		}
+
+		n = split(substr(trunks, 2), t, " ")
+		for (i = 1; i <= n; i++) {
+			k = t[i]
+			print ""
+			print "config bridge-vlan"
+			put("option device", VB)
+			put("option vlan", vvid[k])
+			c = split(sorted(vmem[k]), m, " ")
+			for (j = 1; j <= c; j++)
+				put("list ports", m[j] (vtag[k, m[j]] ? ":t" : ":u*"))
+			# the other ports of the bridge (e.g. a USB adapter) stay
+			# in its VLAN
+			if (vvid[k] == VBVID) {
+				c = split(substr(vbextra, 2), m, " ")
+				for (j = 1; j <= c; j++) put("list ports", m[j] ":u*")
+			}
+		}
+	}
 	' "$CONF" "$CONF"
 }
 
@@ -131,7 +322,7 @@ if convert > "$CONF.dsa"; then
 else
 	rm -f "$CONF.dsa" "$CONF"
 	/bin/config_generate
-	logger -t swconfig-to-dsa "switch setup with tagged ports cannot be converted, defaults generated, old config in $CONF.swconfig"
+	logger -t swconfig-to-dsa "switch setup cannot be converted, defaults generated, old config in $CONF.swconfig"
 fi
 
 exit 0

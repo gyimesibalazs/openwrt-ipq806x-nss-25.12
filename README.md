@@ -384,10 +384,20 @@ The images are written to `bin/targets/ipq806x/generic/openwrt-nss-ipq806x-gener
     names (`lan1`–`lan4`, `wan`). Coming from an official image should keep the
     config, but this has not been tested.
   - Coming from a swconfig NSS image (the release branch), the config is
-    converted on the first boot: `eth1.1` becomes `lan1`–`lan4` and `eth0.2`
-    becomes `wan`. Setups with tagged switch ports get the default config
-    instead; the old one is kept as `/etc/config/network.swconfig`. The image
-    reports compat version 1.0, so `sysupgrade` may need
+    converted on the first boot and the old one is kept as
+    `/etc/config/network.swconfig`:
+    - `eth1.1` becomes `lan1`–`lan4` and `eth0.2` becomes `wan`;
+    - a VLAN tagged on one port only becomes a VLAN upper, e.g. `eth0.35`
+      with `5t` becomes `wan.35`;
+    - VLANs on trunk ports (tagged on several ports, or a port in several
+      VLANs) become `br-lan` with VLAN filtering and a `bridge-vlan` section
+      per VLAN, and `eth1.3` becomes `br-lan.3`. NSS does not accelerate
+      traffic through a VLAN-aware bridge, and this has not been tested on
+      hardware yet;
+    - setups that cannot be converted (a VLAN ID used on two single ports,
+      VLAN IDs 3072–4095) get the default config.
+
+    The image reports compat version 1.0, so `sysupgrade` may need
     `uci set system.@system[0].compat_version=1.0` first.
 - **From the stock firmware, or for recovery:**
   1. Rename `…-squashfs-factory.bin` to `ArcherC2600_1.0_tp_recovery.bin` and
