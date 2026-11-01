@@ -411,7 +411,7 @@ define Device/netgear_r7500v2
 	PAGESIZE := 2048
 	BOARD_NAME := r7500v2
 	SUPPORTED_DEVICES += r7500v2
-	DEVICE_PACKAGES := ath10k-firmware-qca99x0-ct \
+	DEVICE_PACKAGES := -swconfig ath10k-firmware-qca99x0-ct \
 		ath10k-firmware-qca988x-ct
 endef
 TARGET_DEVICES += netgear_r7500v2

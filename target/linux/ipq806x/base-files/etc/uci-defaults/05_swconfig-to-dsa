@@ -24,6 +24,10 @@ CONF="${CONF:-/etc/config/network}"
 
 # switch port -> DSA port, and CPU port -> conduit
 case "${BOARD:-$(board_name)}" in
+netgear,r7500v2)
+	ports="1:lan1 2:lan2 3:lan3 4:lan4 5:wan"
+	cpus="0:eth0 6:eth1"
+	;;
 netgear,r7800|\
 netgear,xr450|\
 netgear,xr500|\
