@@ -206,13 +206,23 @@ logs, register dumps and packet captures.
     new all-zero entry made every port a member.
   - Fix: new entries start with no members.
 - **Multi-register reads**
-  ([kernel patch 714](target/linux/generic/pending-6.12/714-net-dsa-qca8k-fix-the-MDIO-bulk-read-offset.patch)).
+  ([kernel patch 716](target/linux/generic/pending-6.12/716-net-dsa-qca8k-fix-the-MDIO-bulk-read-offset.patch)).
   - Problem: without the QCA header there is no register access over
     Ethernet, so every bulk read falls back to MDIO, and that fallback stored
     the registers one byte apart. The FDB dump, the FDB search and the
     multicast (MDB) entries read garbage. The bug is in mainline too; it was
     pointed out on the OpenWrt forum.
   - Fix: the buffer is indexed as 32-bit words.
+- **RGMII I/O voltage**
+  ([kernel patches 714-01/02](target/linux/generic/pending-6.12/714-02-net-dsa-qca8k-make-mac-pwr-sel-configurable-from-dt.patch),
+  from upstream PR [#26259](https://github.com/openwrt/openwrt/pull/26259)).
+  - Problem: qca8k picks the MAC_PWR_SEL voltage bits from the SoC
+    compatible. On the C2600 that gives 0x000aa545 instead of the swconfig
+    0x0006a545: the GMAC behind port 0 counted CRC errors, and WAN stopped
+    receiving after a few hours. The SoC does not decide it, the board
+    wiring does: the R7500v2 is an IPQ8064 too, but needs the other value.
+  - Fix: two DT flags, `qca,mac-pwr-sel-rgmii0-1p8v` and
+    `qca,mac-pwr-sel-rgmii1-1p8v`, set per board to its swconfig initvals.
 
 **NSS drivers:**
 
