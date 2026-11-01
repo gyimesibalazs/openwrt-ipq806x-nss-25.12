@@ -1,0 +1,83 @@
+## Use "make defconfig" to expand this to a full .config
+## Target: the DSA boards that have not been booted yet, one image each
+CONFIG_TARGET_ipq806x=y
+CONFIG_TARGET_ipq806x_generic=y
+CONFIG_TARGET_MULTI_PROFILE=y
+CONFIG_TARGET_PER_DEVICE_ROOTFS=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_asrock_g10=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_buffalo_wxr-2533dhp=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_compex_wpq864=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_linksys_e8350-v1=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_linksys_ea7500-v1=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_linksys_ea8500=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_nec_wg2600hp=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_nec_wg2600hp3=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_netgear_d7800=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_netgear_r7500=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_netgear_xr450=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_netgear_xr500=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_tplink_ad7200=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_tplink_vr2600v=y
+CONFIG_TARGET_DEVICE_ipq806x_generic_DEVICE_zyxel_nbg6817=y
+CONFIG_EXPERIMENTAL=y
+# Rust in the kernel fails to link on arm32 (4-byte vs 2-byte wchar_t)
+CONFIG_DEVEL=y
+CONFIG_RUST_TOOLCHAINOPTS=y
+# CONFIG_KERNEL_RUST is not set
+
+## Use ath10k-ct: the only non-ct QCA99X0 firmware is the 2016 10.4.1.00030,
+## which does no TX A-MPDU aggregation (~35 Mbit/s downlink)
+CONFIG_PACKAGE_ath10k-firmware-qca99x0-ct=y
+# CONFIG_PACKAGE_ath10k-firmware-qca99x0 is not set
+CONFIG_PACKAGE_kmod-ath10k-ct=y
+CONFIG_ATH10K-CT_LEDS=y
+# CONFIG_PACKAGE_kmod-ath10k is not set
+
+## Use Openssl
+# CONFIG_PACKAGE_wpad-basic-mbedtls is not set
+CONFIG_PACKAGE_wpad-openssl=y
+# CONFIG_PACKAGE_libustream-mbedtls is not set
+CONFIG_PACKAGE_libustream-openssl=y
+CONFIG_OPENSSL_OPTIMIZE_SPEED=y
+CONFIG_OPENSSL_PREFER_CHACHA_OVER_GCM=y
+CONFIG_OPENSSL_WITH_ASM=y
+CONFIG_OPENSSL_WITH_CHACHA_POLY1305=y
+
+#CONFIG_FEED_sqm_scripts_nss=n
+
+# NSS Drivers
+CONFIG_PACKAGE_kmod-nss-ifb=y
+CONFIG_PACKAGE_kmod-qca-mcs=y
+CONFIG_PACKAGE_kmod-qca-nss-cfi-cryptoapi=y
+CONFIG_PACKAGE_kmod-qca-nss-crypto=y
+CONFIG_PACKAGE_kmod-qca-nss-drv=y
+CONFIG_PACKAGE_kmod-qca-nss-drv-igs=y
+#CONFIG_PACKAGE_kmod-qca-nss-drv-l2tpv2=y
+CONFIG_PACKAGE_kmod-qca-nss-drv-pppoe=y
+#CONFIG_PACKAGE_kmod-qca-nss-drv-pptp=y
+CONFIG_PACKAGE_kmod-qca-nss-drv-qdisc=y
+CONFIG_PACKAGE_kmod-qca-nss-drv-tun6rd=y
+CONFIG_PACKAGE_kmod-qca-nss-drv-tunipip6=y
+CONFIG_PACKAGE_kmod-qca-nss-gmac=y
+CONFIG_PACKAGE_kmod-qca-nss-ecm-standard=y
+CONFIG_PACKAGE_MAC80211_NSS_SUPPORT=y
+CONFIG_PACKAGE_MAC80211_DEBUGFS=y
+
+## Luci app
+CONFIG_PACKAGE_luci=y
+CONFIG_PACKAGE_luci-app-ddns=y
+CONFIG_PACKAGE_luci-app-https-dns-proxy=y
+CONFIG_PACKAGE_luci-proto-wireguard=y
+CONFIG_PACKAGE_luci-app-sqm=y
+#CONFIG_PACKAGE_luci-theme-material=y
+
+## SQM QoS nss
+CONFIG_PACKAGE_sqm-scripts-nss=y
+
+## NSS status page: nss-status, Status -> NSS Offload
+CONFIG_PACKAGE_nss-tools=y
+CONFIG_PACKAGE_luci-app-nss=y
+CONFIG_IMAGEOPT=y
+CONFIG_VERSIONOPT=y
+CONFIG_VERSION_DIST="OpenWrt NSS"
+# CONFIG_VERSION_FILENAMES is not set

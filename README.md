@@ -16,7 +16,10 @@ TP-Link Archer C2600.
 > still accelerates it. The test results below were taken on `dsa-lab`: on the
 > TP-Link Archer C2600 by the author, and users have reported the R7800 stable
 > on that branch as well. See
-> [DSA with NSS on the C2600](#dsa-with-nss-on-the-c2600-experimental).
+> [DSA with NSS on the C2600](#dsa-with-nss-on-the-c2600-experimental). The
+> other ipq806x boards with a QCA8337 on gmac1/gmac2 are converted the same
+> way but only built; the board table under "Other boards" lists what has
+> been booted on which branch.
 
 The original OpenWrt README is kept as [README.openwrt.md](README.openwrt.md).
 
@@ -369,16 +372,29 @@ For comparison, the same DSA tagger without NSS (vanilla, CPU routing) reached
   - upgrading from an official 25.12 image.
 - **No switch register access over Ethernet.** It needs the QCA header, so the
   switch is managed over MDIO only.
-- **Other boards.** The Netgear R7800, XR450, XR500 and R7500v2 share the
-  C2600's switch layout: CPU port 0 on `eth0` (RGMII), CPU port 6 on `eth1`
-  (SGMII) and ports 1–5 as the LAN ports and `wan` (`lan4`–`lan1` on the
-  C2600 and the nighthawk boards, `lan1`–`lan4` on the R7500v2). They are
-  converted the same way (DTS, network, LEDs and config conversion), and
-  the R7500v2 gets its own swconfig MAC_PWR_SEL (RGMII0) and RX delay (2).
-  Users report the R7800 stable on `dsa-lab`; the XR450, XR500 and R7500v2
-  have not been booted with it yet. Other ipq806x boards with a QCA8337
-  should work alike, given their port map in `05_swconfig-to-dsa` and the
-  DTS changes.
+- **Other boards.** Every ipq806x board with a QCA8337 behind gmac1 (port 0,
+  RGMII, `eth0`) and gmac2 (port 6, SGMII, `eth1`) is converted the same
+  way: the upstream DSA device tree with the `qca-8021q` tagger and the
+  nss-gmac properties, network, LEDs and the swconfig conversion. MAC_PWR_SEL
+  and the RX delay follow the swconfig initvals of each board, as in
+  upstream PR #26259.
+
+  | Board | Ports 1–5 | MAC_PWR_SEL | `dsa-lab` (6.12) | `dsa-main` (6.18) |
+  |---|---|---|---|---|
+  | TP-Link C2600 | lan4–lan1, wan | RGMII1 | tested (author) | tested (author) |
+  | Netgear R7800 | lan4–lan1, wan | RGMII0 | stable (users) | not booted |
+  | Netgear XR450, XR500 | lan4–lan1, wan | RGMII0 | not booted | not booted |
+  | TP-Link VR2600v | lan4–lan1, wan | RGMII1 | not booted | not booted |
+  | Netgear R7500 v2 | lan1–lan4, wan | RGMII0 | not booted | not booted |
+  | Netgear R7500, D7800, Linksys EA8500, Buffalo WXR-2533DHP, Compex WPQ864 | lan1–lan4, wan | RGMII1 | not booted | not booted |
+  | ZyXEL NBG6817 | lan1–lan4, wan | RGMII0 | not booted | not booted |
+  | Linksys E8350 v1 | lan1–lan4, wan | RGMII0 | not booted | not booted |
+  | TP-Link AD7200, Linksys EA7500 v1, ASRock G10, NEC WG2600HP, WG2600HP3 | wan, lan1–lan4 | RGMII1 | not booted | not booted |
+
+  "Not booted" boards are only built (CI: `diff-dsa-boards`); reports from
+  anyone who flashes one are welcome. The OnHub, AP161, DB149, RT4230W rev6
+  and TR4400 v2 use gmac0 or a third GMAC and stay on swconfig, as do the
+  boards without a switch.
 
 ## SQM with NSS
 
