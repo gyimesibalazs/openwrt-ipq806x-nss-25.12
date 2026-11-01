@@ -30,6 +30,10 @@ jobs:
             seed: diff
           - device: netgear_r7500v2
             seed: diff-r7500v2
+          # every DSA board that has not been booted yet, one image each
+          - device: dsa-boards
+            seed: diff-dsa-boards
+            images: '*'
 
     steps:
       - name: Free disk space
@@ -86,8 +90,8 @@ jobs:
       - name: Collect images
         run: |
           mkdir -p out
-          cp bin/targets/ipq806x/generic/openwrt-nss-*-${{ matrix.device }}-* out/
-          cp bin/targets/ipq806x/generic/openwrt-nss-*-${{ matrix.device }}.manifest out/
+          cp bin/targets/ipq806x/generic/openwrt-nss-*-${{ matrix.images || matrix.device }}-* out/
+          cp bin/targets/ipq806x/generic/openwrt-nss-*-${{ matrix.images || matrix.device }}.manifest out/
           (cd out && sha256sum * > sha256sums-${{ matrix.device }})
           ls -la out
 
