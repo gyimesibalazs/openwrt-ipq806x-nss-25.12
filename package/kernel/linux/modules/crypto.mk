@@ -341,6 +341,14 @@ endef
 KernelPackage/crypto-ghash/imx/cortexa7=$(KernelPackage/crypto-ghash/arm-ce)
 KernelPackage/crypto-ghash/imx/cortexa9=$(KernelPackage/crypto-ghash/arm-ce)
 KernelPackage/crypto-ghash/ipq40xx=$(KernelPackage/crypto-ghash/arm-ce)
+
+# One AutoLoad call: appending a second one (as arm-ce does) puts its
+# priority and boot flag into the module list
+define KernelPackage/crypto-ghash/ipq806x
+  FILES+= $(LINUX_DIR)/arch/arm/crypto/ghash-arm-ce.ko
+  AUTOLOAD:=$(call AutoLoad,09,ghash-generic ghash-arm-ce)
+endef
+
 KernelPackage/crypto-ghash/mvebu/cortexa9=$(KernelPackage/crypto-ghash/arm-ce)
 
 $(eval $(call KernelPackage,crypto-ghash))
