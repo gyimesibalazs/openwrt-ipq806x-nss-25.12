@@ -28,6 +28,8 @@ jobs:
             seed: diff-c2600
           - device: netgear_r7800
             seed: diff
+          - device: netgear_r7500v2
+            seed: diff-r7500v2
 
     steps:
       - name: Free disk space
