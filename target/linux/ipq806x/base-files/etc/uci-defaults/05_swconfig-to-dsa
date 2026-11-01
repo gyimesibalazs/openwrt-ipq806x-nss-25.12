@@ -24,16 +24,34 @@ CONF="${CONF:-/etc/config/network}"
 
 # switch port -> DSA port, and CPU port -> conduit
 case "${BOARD:-$(board_name)}" in
-netgear,r7500v2)
+buffalo,wxr-2533dhp|\
+compex,wpq864|\
+linksys,ea8500|\
+netgear,d7800|\
+netgear,r7500|\
+netgear,r7500v2|\
+zyxel,nbg6817)
 	ports="1:lan1 2:lan2 3:lan3 4:lan4 5:wan"
 	cpus="0:eth0 6:eth1"
 	;;
 netgear,r7800|\
 netgear,xr450|\
 netgear,xr500|\
-tplink,c2600)
+tplink,c2600|\
+tplink,vr2600v)
 	ports="1:lan4 2:lan3 3:lan2 4:lan1 5:wan"
 	cpus="0:eth0 6:eth1"
+	;;
+asrock,g10|\
+linksys,ea7500-v1|\
+nec,wg2600hp|\
+tplink,ad7200)
+	ports="1:wan 2:lan1 3:lan2 4:lan3 5:lan4"
+	cpus="0:eth0 6:eth1"
+	;;
+nec,wg2600hp3)
+	ports="1:wan 2:lan1 3:lan2 4:lan3 5:lan4"
+	cpus="0:eth1 6:eth0"
 	;;
 *)
 	exit 0
