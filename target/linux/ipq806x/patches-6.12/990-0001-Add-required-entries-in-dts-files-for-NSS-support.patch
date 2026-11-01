@@ -1,6 +1,6 @@
 --- a/arch/arm/boot/dts/qcom/qcom-ipq8064-ad7200-c2600.dtsi
 +++ b/arch/arm/boot/dts/qcom/qcom-ipq8064-ad7200-c2600.dtsi
-@@ -444,6 +444,9 @@
+@@ -447,6 +447,9 @@
  
  &gmac1 {
  	status = "okay";
@@ -10,7 +10,7 @@
  	phy-mode = "rgmii";
  	qcom,id = <1>;
  
-@@ -461,6 +464,9 @@
+@@ -464,6 +467,9 @@
  
  &gmac2 {
  	status = "okay";
@@ -22,91 +22,43 @@
  
 --- a/arch/arm/boot/dts/qcom/qcom-ipq8064-d7800.dts
 +++ b/arch/arm/boot/dts/qcom/qcom-ipq8064-d7800.dts
-@@ -439,6 +439,9 @@
+@@ -442,6 +442,9 @@
  
  &gmac1 {
  	status = "okay";
-+	qcom,phy-mdio-addr = <4>;
++	qcom,phy-mdio-addr = <32>;
 +	qcom,poll-required = <0>;
 +	qcom,rgmii-delay = <1>;
  	phy-mode = "rgmii";
  	qcom,id = <1>;
  
-@@ -456,6 +459,9 @@
+@@ -459,6 +462,9 @@
  
  &gmac2 {
  	status = "okay";
-+	qcom,phy-mdio-addr = <0>;
++	qcom,phy-mdio-addr = <32>;
 +	qcom,poll-required = <0>;
 +	qcom,rgmii-delay = <0>;
  	phy-mode = "sgmii";
  	qcom,id = <2>;
  
---- a/arch/arm/boot/dts/qcom/qcom-ipq8064-ea7500-v1.dts
-+++ b/arch/arm/boot/dts/qcom/qcom-ipq8064-ea7500-v1.dts
-@@ -118,3 +118,16 @@
- 		};
- 	};
- };
-+
-+&gmac1 {
-+	qcom,phy-mdio-addr = <0>;
-+	qcom,poll-required = <0>;
-+	qcom,rgmii-delay = <1>;
-+};
-+
-+/* LAN */
-+&gmac2 {
-+	qcom,phy-mdio-addr = <4>;
-+	qcom,poll-required = <0>;
-+	qcom,rgmii-delay = <0>;
-+};
---- a/arch/arm/boot/dts/qcom/qcom-ipq8064-ea8500.dts
-+++ b/arch/arm/boot/dts/qcom/qcom-ipq8064-ea8500.dts
-@@ -109,18 +109,3 @@
- 		reg = <0x5f80000 0x2080000>;
- 	};
- };
--
--&gmac1 {
--	qcom,phy_mdio_addr = <4>;
--	qcom,poll_required = <1>;
--	qcom,rgmii_delay = <0>;
--	qcom,emulation = <0>;
--};
--
--/* LAN */
--&gmac2 {
--	qcom,phy_mdio_addr = <0>;	/* none */
--	qcom,poll_required = <0>;	/* no polling */
--	qcom,rgmii_delay = <0>;
--	qcom,emulation = <0>;
--};
 --- a/arch/arm/boot/dts/qcom/qcom-ipq8064-eax500.dtsi
 +++ b/arch/arm/boot/dts/qcom/qcom-ipq8064-eax500.dtsi
-@@ -327,10 +327,17 @@
- 			};
- 		};
- 	};
-+
-+	phy4: ethernet-phy@4 {
-+		reg = <4>;
-+	};
- };
+@@ -334,6 +334,9 @@
  
  &gmac1 {
  	status = "okay";
-+	qcom,phy-mdio-addr = <0>;
++	qcom,phy-mdio-addr = <32>;
 +	qcom,poll-required = <0>;
 +	qcom,rgmii-delay = <1>;
  
  	phy-mode = "rgmii";
  	qcom,id = <1>;
-@@ -349,6 +356,9 @@
+@@ -352,6 +355,9 @@
  
  &gmac2 {
  	status = "okay";
-+	qcom,phy-mdio-addr = <4>;
++	qcom,phy-mdio-addr = <32>;
 +	qcom,poll-required = <0>;
 +	qcom,rgmii-delay = <0>;
  
@@ -128,7 +80,7 @@
  	phy-mode = "rgmii";
  	qcom,id = <1>;
 +	qcom,pcs-chanid = <0>;
-+	qcom,phy-mdio-addr = <4>;
++	qcom,phy-mdio-addr = <32>;
 +	qcom,poll-required = <0>;
 +	qcom,rgmii-delay = <1>;
 +	qcom,phy_mii_type = <0>;
@@ -154,7 +106,7 @@
  	phy-mode = "sgmii";
  	qcom,id = <2>;
 +	qcom,pcs-chanid = <1>;
-+	qcom,phy-mdio-addr = <0>;
++	qcom,phy-mdio-addr = <32>;
 +	qcom,poll-required = <0>;	/* no polling */
 +	qcom,rgmii-delay = <0>;
 +	qcom,phy_mii_type = <1>;
@@ -167,26 +119,6 @@
  
  	fixed-link {
  		speed = <1000>;
-@@ -159,6 +184,9 @@
- 
- &mdio0 {
- 	status = "okay";
-+	qcom,phy-mdio-addr = <4>;
-+	qcom,poll-required = <0>;
-+	qcom,rgmii-delay = <1>;
- 
- 	pinctrl-0 = <&mdio0_pins>;
- 	pinctrl-names = "default";
-@@ -265,6 +293,9 @@
- 
- &nand {
- 	status = "okay";
-+	qcom,phy-mdio-addr = <0>;
-+	qcom,poll-required = <0>;
-+	qcom,rgmii-delay = <0>;
- 
- 	nand@0 {
- 		reg = <0>;
 --- a/arch/arm/boot/dts/qcom/qcom-ipq8064-onhub.dtsi
 +++ b/arch/arm/boot/dts/qcom/qcom-ipq8064-onhub.dtsi
 @@ -10,8 +10,6 @@
@@ -250,21 +182,21 @@
  		speed = <1000>;
 --- a/arch/arm/boot/dts/qcom/qcom-ipq8064-r7500.dts
 +++ b/arch/arm/boot/dts/qcom/qcom-ipq8064-r7500.dts
-@@ -376,6 +376,9 @@
+@@ -379,6 +379,9 @@
  
  &gmac1 {
  	status = "okay";
-+	qcom,phy-mdio-addr = <4>;
++	qcom,phy-mdio-addr = <32>;
 +	qcom,poll-required = <0>;
 +	qcom,rgmii-delay = <1>;
  	phy-mode = "rgmii";
  	qcom,id = <1>;
  
-@@ -393,6 +396,9 @@
+@@ -396,6 +399,9 @@
  
  &gmac2 {
  	status = "okay";
-+	qcom,phy-mdio-addr = <0>;
++	qcom,phy-mdio-addr = <32>;
 +	qcom,poll-required = <0>;
 +	qcom,rgmii-delay = <0>;
  	phy-mode = "sgmii";
@@ -312,7 +244,7 @@
  
 --- a/arch/arm/boot/dts/qcom/qcom-ipq8064-wg2600hp.dts
 +++ b/arch/arm/boot/dts/qcom/qcom-ipq8064-wg2600hp.dts
-@@ -247,9 +247,25 @@ switch@10 {
+@@ -250,9 +250,25 @@
  &gmac1 {
  	status = "okay";
  
@@ -324,7 +256,7 @@
  	qcom,id = <1>;
  
 + 	qcom,pcs-chanid = <0>;
-+ 	qcom,phy-mdio-addr = <4>;	/* AKRO: 4->1 */
++ 	qcom,phy-mdio-addr = <32>;	/* AKRO: 4->1 */
 + 	qcom,poll-required = <0>;	/* AKRO: 0->1 */
 + 	qcom,rgmii-delay = <1>;		/* AKRO: 1->0 */
 + 	qcom,phy_mii_type = <0>;	/* AKRO: 0->8(PHY_INTERFACE_MODE_RGMII) */
@@ -338,7 +270,7 @@
  	pinctrl-0 = <&rgmii2_pins>;
  	pinctrl-names = "default";
  
-@@ -265,9 +281,25 @@ switch@10 {
+@@ -268,9 +284,25 @@
  &gmac2 {
  	status = "okay";
  
@@ -350,7 +282,7 @@
  	qcom,id = <2>;
  
 + 	qcom,pcs-chanid = <1>;
-+ 	qcom,phy-mdio-addr = <0>;	/* AKRO: 0->0 */
++ 	qcom,phy-mdio-addr = <32>;	/* AKRO: 0->0 */
 + 	qcom,poll-required = <0>; /* no polling */
 + 	qcom,rgmii-delay = <0>;
 + 	qcom,phy_mii_type = <1>;	/* AKRO: 1->4(PHY_INTERFACE_MODE_SGMII) */
@@ -584,7 +516,7 @@
 + };
 --- a/arch/arm/boot/dts/qcom/qcom-ipq8065-nbg6817.dts
 +++ b/arch/arm/boot/dts/qcom/qcom-ipq8065-nbg6817.dts
-@@ -386,13 +386,23 @@
+@@ -389,13 +389,23 @@
  
  &gmac1 {
  	status = "okay";
@@ -597,7 +529,7 @@
  	qcom,phy_mdio_addr = <4>;
  	qcom,poll_required = <0>;
  	qcom,rgmii_delay = <1>;
-+	qcom,phy-mdio-addr = <4>;
++	qcom,phy-mdio-addr = <32>;
 +	qcom,poll-required = <0>;
 +	qcom,rgmii-delay = <1>;
  	qcom,phy_mii_type = <0>;
@@ -608,7 +540,7 @@
  	qcom,irq = <255>;
  	mdiobus = <&mdio0>;
  
-@@ -407,13 +417,23 @@
+@@ -410,13 +420,23 @@
  
  &gmac2 {
  	status = "okay";
@@ -621,7 +553,7 @@
  	qcom,phy_mdio_addr = <0>;	/* none */
  	qcom,poll_required = <0>;	/* no polling */
  	qcom,rgmii_delay = <0>;
-+	qcom,phy-mdio-addr = <0>;
++	qcom,phy-mdio-addr = <32>;
 +	qcom,poll-required = <0>;
 +	qcom,rgmii-delay = <0>;
  	qcom,phy_mii_type = <1>;
@@ -634,7 +566,7 @@
  
 --- a/arch/arm/boot/dts/qcom/qcom-ipq8065-nighthawk.dtsi
 +++ b/arch/arm/boot/dts/qcom/qcom-ipq8065-nighthawk.dtsi
-@@ -452,13 +452,23 @@
+@@ -455,13 +455,23 @@
  &gmac1 {
  	status = "okay";
  
@@ -658,7 +590,7 @@
  	qcom,irq = <255>;
  	mdiobus = <&mdio0>;
  
-@@ -477,13 +487,23 @@
+@@ -480,13 +490,23 @@
  &gmac2 {
  	status = "okay";
  
@@ -748,3 +680,113 @@
 +	qcom,mid-frequency = <600000000>;
 +	qcom,max-frequency = <800000000>;
 + };
+--- a/arch/arm/boot/dts/qcom/qcom-ipq8064-vr2600v.dts
++++ b/arch/arm/boot/dts/qcom/qcom-ipq8064-vr2600v.dts
+@@ -475,6 +475,9 @@
+ 
+ &gmac1 {
+ 	status = "okay";
++	qcom,phy-mdio-addr = <32>;
++	qcom,poll-required = <0>;
++	qcom,rgmii-delay = <1>;
+ 	phy-mode = "rgmii";
+ 	qcom,id = <1>;
+ 
+@@ -492,6 +495,9 @@
+ 
+ &gmac2 {
+ 	status = "okay";
++	qcom,phy-mdio-addr = <32>;
++	qcom,poll-required = <0>;
++	qcom,rgmii-delay = <0>;
+ 	phy-mode = "sgmii";
+ 	qcom,id = <2>;
+ 
+--- a/arch/arm/boot/dts/qcom/qcom-ipq8062-wg2600hp3.dts
++++ b/arch/arm/boot/dts/qcom/qcom-ipq8062-wg2600hp3.dts
+@@ -682,6 +682,9 @@
+ 
+ &gmac1 {
+ 	status = "okay";
++	qcom,phy-mdio-addr = <32>;
++	qcom,poll-required = <0>;
++	qcom,rgmii-delay = <1>;
+ 
+ 	pinctrl-0 = <&rgmii2_pins>;
+ 	pinctrl-names = "default";
+@@ -700,6 +703,9 @@
+ 
+ &gmac2 {
+ 	status = "okay";
++	qcom,phy-mdio-addr = <32>;
++	qcom,poll-required = <0>;
++	qcom,rgmii-delay = <0>;
+ 	phy-mode = "sgmii";
+ 	qcom,id = <2>;
+ 	mdiobus = <&mdio0>;
+--- a/arch/arm/boot/dts/qcom/qcom-ipq8064-wxr-2533dhp.dts
++++ b/arch/arm/boot/dts/qcom/qcom-ipq8064-wxr-2533dhp.dts
+@@ -303,6 +303,9 @@
+ 
+ &gmac1 {
+ 	status = "okay";
++	qcom,phy-mdio-addr = <32>;
++	qcom,poll-required = <0>;
++	qcom,rgmii-delay = <1>;
+ 
+ 	phy-mode = "rgmii";
+ 	qcom,id = <1>;
+@@ -321,6 +324,9 @@
+ 
+ &gmac2 {
+ 	status = "okay";
++	qcom,phy-mdio-addr = <32>;
++	qcom,poll-required = <0>;
++	qcom,rgmii-delay = <0>;
+ 
+ 	phy-mode = "sgmii";
+ 	qcom,id = <2>;
+--- a/arch/arm/boot/dts/qcom/qcom-ipq8064-wpq864.dts
++++ b/arch/arm/boot/dts/qcom/qcom-ipq8064-wpq864.dts
+@@ -377,6 +377,9 @@
+ 
+ &gmac1 {
+ 	status = "okay";
++	qcom,phy-mdio-addr = <32>;
++	qcom,poll-required = <0>;
++	qcom,rgmii-delay = <1>;
+ 
+ 	pinctrl-0 = <&rgmii2_pins>;
+ 	pinctrl-names = "default";
+@@ -392,6 +395,9 @@
+ 
+ &gmac2 {
+ 	status = "okay";
++	qcom,phy-mdio-addr = <32>;
++	qcom,poll-required = <0>;
++	qcom,rgmii-delay = <0>;
+ 
+ 	phy-mode = "sgmii";
+ 	qcom,id = <2>;
+--- a/arch/arm/boot/dts/qcom/qcom-ipq8064-e8350-v1.dts
++++ b/arch/arm/boot/dts/qcom/qcom-ipq8064-e8350-v1.dts
+@@ -395,6 +395,9 @@
+ 
+ &gmac1 {
+ 	status = "okay";
++	qcom,phy-mdio-addr = <32>;
++	qcom,poll-required = <0>;
++	qcom,rgmii-delay = <1>;
+ 
+ 	phy-mode = "rgmii";
+ 	qcom,id = <1>;
+@@ -410,6 +413,9 @@
+ 
+ &gmac2 {
+ 	status = "okay";
++	qcom,phy-mdio-addr = <32>;
++	qcom,poll-required = <0>;
++	qcom,rgmii-delay = <0>;
+ 
+ 	phy-mode = "sgmii";
+ 	qcom,id = <2>;
