@@ -272,21 +272,21 @@
  
 --- a/arch/arm/boot/dts/qcom/qcom-ipq8064-r7500v2.dts
 +++ b/arch/arm/boot/dts/qcom/qcom-ipq8064-r7500v2.dts
-@@ -435,6 +435,9 @@
+@@ -438,6 +438,9 @@
  
  &gmac1 {
  	status = "okay";
-+	qcom,phy-mdio-addr = <4>;
++	qcom,phy-mdio-addr = <32>;
 +	qcom,poll-required = <0>;
 +	qcom,rgmii-delay = <1>;
  	phy-mode = "rgmii";
  	qcom,id = <1>;
  
-@@ -452,6 +455,9 @@
+@@ -455,6 +458,9 @@
  
  &gmac2 {
  	status = "okay";
-+	qcom,phy-mdio-addr = <0>;
++	qcom,phy-mdio-addr = <32>;
 +	qcom,poll-required = <0>;
 +	qcom,rgmii-delay = <0>;
  	phy-mode = "sgmii";

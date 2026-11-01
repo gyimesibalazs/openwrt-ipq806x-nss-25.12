@@ -306,13 +306,16 @@ For comparison, the same DSA tagger without NSS (vanilla, CPU routing) reached
   - upgrading from an official 25.12 image.
 - **No switch register access over Ethernet.** It needs the QCA header, so the
   switch is managed over MDIO only.
-- **Other boards.** The Netgear R7800, XR450 and XR500 share the C2600's switch
-  layout: CPU port 0 on `eth0` (RGMII), CPU port 6 on `eth1` (SGMII), and
-  ports 1–5 as `lan4`–`lan1` and `wan`. They are converted the same way
-  (nighthawk DTS, NSS DT patch, network, LEDs and config conversion), but
-  none of them has been booted with it yet. Other ipq806x boards with a
-  QCA8337 should work alike, given their port map in `05_swconfig-to-dsa`
-  and the DTS changes.
+- **Other boards.** The Netgear R7800, XR450, XR500 and R7500v2 share the
+  C2600's switch layout: CPU port 0 on `eth0` (RGMII), CPU port 6 on `eth1`
+  (SGMII) and ports 1–5 as the LAN ports and `wan` (`lan4`–`lan1` on the
+  C2600 and the nighthawk boards, `lan1`–`lan4` on the R7500v2). They are
+  converted the same way (DTS, network, LEDs and config conversion), and
+  the R7500v2 gets its own swconfig MAC_PWR_SEL (RGMII0) and RX delay (2).
+  Users report the R7800 stable on `dsa-lab`; the XR450, XR500 and R7500v2
+  have not been booted with it yet. Other ipq806x boards with a QCA8337
+  should work alike, given their port map in `05_swconfig-to-dsa` and the
+  DTS changes.
 
 ## SQM with NSS
 
