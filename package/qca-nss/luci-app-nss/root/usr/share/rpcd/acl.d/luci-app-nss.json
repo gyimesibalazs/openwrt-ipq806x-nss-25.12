@@ -1,6 +1,6 @@
 {
 	"luci-app-nss": {
-		"description": "Grant access to the NSS offload status page",
+		"description": "Grant access to the NSS offload status page and the ECM switch",
 		"read": {
 			"file": {
 				"/usr/sbin/nss-status -j": [ "exec" ],
@@ -12,6 +12,13 @@
 				"/sys/class/thermal": [ "list" ],
 				"/sys/class/thermal/*": [ "read" ],
 				"/sys/devices/virtual/thermal/*": [ "read" ]
+			},
+			"uci": [ "ecm" ]
+		},
+		"write": {
+			"file": {
+				"/usr/libexec/luci-nss-ecm on": [ "exec" ],
+				"/usr/libexec/luci-nss-ecm off": [ "exec" ]
 			}
 		}
 	}

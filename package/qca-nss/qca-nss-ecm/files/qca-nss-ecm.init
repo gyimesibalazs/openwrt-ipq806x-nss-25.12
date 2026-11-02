@@ -107,6 +107,16 @@ disable_flow_offload() {
 }
 
 start() {
+	local enabled
+
+	config_load ecm
+	config_get_bool enabled global enabled 1
+	if [ "$enabled" = 0 ]; then
+		# Acceleration is off: hand flow offloading back to the firewall
+		modprobe nft_flow_offload 2>/dev/null
+		return 0
+	fi
+
 	disable_flow_offload
 	load_ecm
 

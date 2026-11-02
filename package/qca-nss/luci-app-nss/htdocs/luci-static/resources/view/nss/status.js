@@ -4,6 +4,7 @@
 'require poll';
 'require dom';
 'require ui';
+'require uci';
 
 // Renders the output of `nss-status -j` (the single source of truth for
 // NSS plane health); this view only formats, it computes nothing itself.
@@ -14,6 +15,38 @@ function getStatus() {
 			throw new Error(res.stderr || 'nss-status failed');
 		return JSON.parse(res.stdout);
 	});
+}
+
+// ECM acceleration switch: the setting is ecm.global.enabled, flipped by
+// /usr/libexec/luci-nss-ecm, which also restarts ECM.
+var ecmEnabled = true;
+var container = null;
+
+function toggleEcm(on) {
+	return fs.exec('/usr/libexec/luci-nss-ecm', [ on ? 'on' : 'off' ]).then(function(res) {
+		if (res.code !== 0)
+			throw new Error(res.stderr || 'luci-nss-ecm failed');
+		ecmEnabled = on;
+		return getStatus();
+	}).then(function(d) {
+		dom.content(container, renderStatus(d));
+	}).catch(function(e) {
+		ui.addNotification(null, E('p', [ e.message ]));
+	});
+}
+
+function ecmSwitch(loaded) {
+	var state = ecmEnabled
+		? (loaded ? _('on') : _('on, but ECM is not loaded'))
+		: _('off (flow offloading is left to the firewall)');
+
+	return [
+		state, ' ',
+		E('button', {
+			'class': 'btn cbi-button ' + (ecmEnabled ? 'cbi-button-negative' : 'cbi-button-positive'),
+			'click': ui.createHandlerFn(null, toggleEcm, !ecmEnabled)
+		}, ecmEnabled ? _('Turn off') : _('Turn on'))
+	];
 }
 
 function stateBadge(state) {
@@ -209,6 +242,7 @@ function renderStatus(d) {
 			row(_('Firmware'), d.fw_version + ' (fw_mask ' + d.fw_mask + ')'),
 			row(_('Heartbeat'), _('%s pkts/s (NSS→host)').format(d.heartbeat_pps)),
 			row(_('NSS core load'), cores || '-'),
+			row(_('ECM acceleration'), ecmSwitch(d.ecm.loaded)),
 			row(_('ECM accelerated connections'), d.ecm.loaded
 				? _('%s IPv4 / %s IPv6 / %s multicast').format(d.ecm.ipv4_accel, d.ecm.ipv6_accel, d.ecm.multicast_accel)
 				: _('ECM not loaded')),
@@ -296,10 +330,13 @@ function renderDiagnostics() {
 }
 
 return view.extend({
-	load: getStatus,
+	load: function() {
+		return Promise.all([ getStatus(), uci.load('ecm') ]);
+	},
 
 	render: function(data) {
-		var container = E('div', {}, renderStatus(data));
+		ecmEnabled = uci.get('ecm', 'global', 'enabled') !== '0';
+		container = E('div', {}, renderStatus(data[0]));
 
 		poll.add(function() {
 			return getStatus().then(function(d) {
