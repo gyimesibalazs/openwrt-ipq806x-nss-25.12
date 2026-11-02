@@ -1,0 +1,13 @@
+#!/bin/sh
+# Turns ECM connection acceleration on or off for the NSS Offload page:
+# the setting lives in /etc/config/ecm and the ECM init script acts on it.
+
+case "$1" in
+on) enabled=1 ;;
+off) enabled=0 ;;
+*) echo "usage: $0 on|off" >&2; exit 1 ;;
+esac
+
+uci set ecm.global.enabled=$enabled
+uci commit ecm
+/etc/init.d/qca-nss-ecm restart >/dev/null 2>&1
