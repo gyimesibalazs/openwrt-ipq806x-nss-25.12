@@ -1,0 +1,30 @@
+From: Gyimesi Balázs <gyimesi.balazs@gmail.com>
+Subject: [PATCH] mtd: spi-nor: macronix: use 4B opcodes on MX25U25635F again
+
+Linux 6.12 still listed the MX25U25635F with SPI_NOR_4B_OPCODES. The
+entry is gone since, and the part is left to SFDP. Its SFDP has no
+4-byte Address Instruction Table, so the core does not know about the
+4B opcodes and switches the flash to 4-byte address mode with EN4B
+instead. A warm reset does not leave that mode, the boot ROM reads the
+first stage loader with 3-byte addresses and the board hangs. The
+TP-Link Archer C2600 stops on every reboot and only comes back after a
+power cycle.
+
+Restore the entry with SPI_NOR_4B_OPCODES, which keeps the flash in
+3-byte mode. Size and the rest come from SFDP.
+
+Signed-off-by: Gyimesi Balázs <gyimesi.balazs@gmail.com>
+---
+--- a/drivers/mtd/spi-nor/macronix.c
++++ b/drivers/mtd/spi-nor/macronix.c
+@@ -188,6 +188,10 @@
+ 		.size = SZ_16M,
+ 		.no_sfdp_flags = SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
+ 	}, {
++		/* MX25U25635F */
++		.id = SNOR_ID(0xc2, 0x25, 0x39),
++		.fixup_flags = SPI_NOR_4B_OPCODES,
++	}, {
+ 		/* MX25U51245G */
+ 		.id = SNOR_ID(0xc2, 0x25, 0x3a),
+ 		.fixups = &macronix_qpp4b_fixups,
