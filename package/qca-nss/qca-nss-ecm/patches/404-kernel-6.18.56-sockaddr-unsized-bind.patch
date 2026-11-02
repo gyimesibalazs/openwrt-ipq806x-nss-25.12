@@ -1,0 +1,15 @@
+Linux 6.18.56 picked up the sockaddr_unsized change: proto_ops->bind now
+takes a struct sockaddr_unsized pointer. Pass the address through void *
+so the call builds with either prototype.
+
+--- a/ecm_interface.c
++++ b/ecm_interface.c
+@@ -8182,7 +8182,7 @@ static void ecm_interface_wifi_event_thr
+ 	saddr.nl_groups = RTNLGRP_LINK;
+ 	saddr.nl_pid    = current->pid;
+ 
+-	err = __ewn.sock->ops->bind(__ewn.sock, (struct sockaddr *)&saddr, sizeof(struct sockaddr));
++	err = __ewn.sock->ops->bind(__ewn.sock, (void *)&saddr, sizeof(struct sockaddr));
+ 	if (err < 0) {
+ 		DEBUG_ERROR("failed to bind sock\n");
+ 		goto exit2;

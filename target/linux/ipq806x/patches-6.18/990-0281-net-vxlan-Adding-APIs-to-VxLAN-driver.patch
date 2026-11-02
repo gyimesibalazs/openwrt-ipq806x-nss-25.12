@@ -20,9 +20,9 @@ Signed-off-by: Cemil Coskun <ccoskun@codeaurora.org>
 Signed-off-by: Apoorv Gupta <apoogupt@codeaurora.org>
 Signed-off-by: Vishnu Vardhan Bantanahal <quic_vishvard@quicinc.com>
 ---
- drivers/net/vxlan/vxlan_core.c | 31 +++++++++++++++++++++++++++++++
+ drivers/net/vxlan/vxlan_core.c | 27 +++++++++++++++++++++++++++
  include/net/vxlan.h            | 29 +++++++++++++++++++++++++++++
- 2 files changed, 60 insertions(+)
+ 2 files changed, 56 insertions(+)
 
 --- a/drivers/net/vxlan/vxlan_core.c
 +++ b/drivers/net/vxlan/vxlan_core.c
@@ -61,26 +61,22 @@ Signed-off-by: Vishnu Vardhan Bantanahal <quic_vishvard@quicinc.com>
  	rtnl_notify(skb, net, 0, RTNLGRP_NEIGH, NULL, GFP_ATOMIC);
 +	vfe.dev = vxlan->dev;
 +	vfe.rdst = rd;
-+	ether_addr_copy(vfe.eth_addr, fdb->eth_addr);
++	ether_addr_copy(vfe.eth_addr, fdb->key.eth_addr);
 +	atomic_notifier_call_chain(&vxlan_fdb_notifier_list, type, (void *)&vfe);
  	return;
  errout:
  	rtnl_set_sk_err(net, RTNLGRP_NEIGH, err);
-@@ -423,6 +442,20 @@ static struct vxlan_fdb *vxlan_find_mac(
+@@ -423,6 +442,16 @@ static struct vxlan_fdb *vxlan_find_mac(
  	return f;
  }
  
 +/* Find and update age of fdb entry corresponding to MAC. */
 +void vxlan_fdb_update_mac(struct vxlan_dev *vxlan, const u8 *mac, uint32_t vni)
 +{
-+	u32 hash_index;
-+
-+	hash_index = fdb_head_index(vxlan, mac, vni);
-+	spin_lock_bh(&vxlan->hash_lock[hash_index]);
++	/* the FDB is an rhashtable now; the lookup only needs RCU */
 +	rcu_read_lock();
 +	vxlan_find_mac_tx(vxlan, mac, (__force __be32)vni);
 +	rcu_read_unlock();
-+	spin_unlock_bh(&vxlan->hash_lock[hash_index]);
 +}
 +EXPORT_SYMBOL(vxlan_fdb_update_mac);
 +
