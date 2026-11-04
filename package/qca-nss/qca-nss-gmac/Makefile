@@ -44,7 +44,7 @@ define Build/Compile
 	$(KERNEL_MAKE) \
 		SUBDIRS="$(PKG_BUILD_DIR)" \
 		M="$(PKG_BUILD_DIR)" \
-		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" \
+		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" CFLAGS_MODULE="-Wno-error" \
 		modules
 endef
 

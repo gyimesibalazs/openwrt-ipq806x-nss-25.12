@@ -69,7 +69,7 @@ define Build/Compile
 	$(KERNEL_MAKE) \
 		CC="$(TARGET_CC)" \
 		M="$(PKG_BUILD_DIR)" \
-		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" \
+		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" CFLAGS_MODULE="-Wno-error" \
 		NSS_CRYPTO_DIR=$(NSS_CRYPTO_DIR) \
 		SoC="$(subtarget)" \
 		modules
