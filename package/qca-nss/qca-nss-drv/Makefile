@@ -265,7 +265,7 @@ endef
 define Build/Compile
 	$(KERNEL_MAKE) $(strip $(DRV_MAKE_OPTS)) \
 		M="$(PKG_BUILD_DIR)" \
-		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" CFLAGS_MODULE="$(EXTRA_CFLAGS)" SoC="$(subtarget)" \
+		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" CFLAGS_MODULE="$(EXTRA_CFLAGS) -Wno-error" SoC="$(subtarget)" \
 		modules
 endef
 
