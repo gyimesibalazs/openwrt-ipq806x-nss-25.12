@@ -1,33 +1,35 @@
 # OpenWrt master with Qualcomm NSS offload for ipq806x
 
-This repository contains OpenWrt **master** (Linux **6.18.55**, mac80211 backports
+This repository contains OpenWrt **master** (Linux **6.18.60**, mac80211 backports
 7.2) with the Qualcomm **NSS** (Network Subsystem) hardware offload for the
 **ipq806x** platform (IPQ8064/IPQ8065). It targets the Netgear R7800 and the
 TP-Link Archer C2600.
 
-> **This is the `dsa-main` branch**, a port of the `dsa-lab` branch
-> (OpenWrt 25.12.6, Linux 6.12) to OpenWrt master. The C2600 image boots and
-> routes with NSS offload: 938 Mbit/s upload and 843 Mbit/s download through
-> NAT, all of it offloaded, with no CRC errors. The R7800 image builds but has
-> not been booted yet. See
-> [Port to OpenWrt master and Linux 6.18](#port-to-openwrt-master-and-linux-618).
+> **This is the `dsa-main` branch.** The switch runs with **DSA** instead of
+> swconfig, and NSS still accelerates it (see
+> [DSA with NSS](#dsa-with-nss-experimental)).
 >
-> The C2600 and R7800 run the switch with **DSA** instead of swconfig, and NSS
-> still accelerates it. The test results below were taken on `dsa-lab`: on the
-> TP-Link Archer C2600 by the author, and users have reported the R7800 stable
-> on that branch as well. See
-> [DSA with NSS on the C2600](#dsa-with-nss-on-the-c2600-experimental). The
-> other ipq806x boards with a QCA8337 on gmac1/gmac2 are converted the same
-> way but only built; the board table under "Other boards" lists what has
-> been booted on which branch.
+> - **TP-Link Archer C2600:** tested by the author. 938 Mbit/s upload and
+>   843 Mbit/s download through NAT, all of it offloaded.
+> - **Netgear R7800:** users report several units stable on this branch.
+> - **Other ipq806x boards** with a QCA8337 on gmac1/gmac2 are converted the
+>   same way but only built (see the board table under "Other boards").
+> - **Migration from swconfig (experimental):** a `sysupgrade` from a swconfig
+>   NSS image that keeps the settings converts the network config on the first
+>   boot. See [Migrating from swconfig](#migrating-from-swconfig-experimental).
+>
+> **Other branches:** `ipq806x-nss-25.12.6` is OpenWrt 25.12.6 (Linux 6.12)
+> with swconfig, the conservative choice. `dsa-lab` is the same 25.12.6 base
+> with DSA, where the DSA work was done before it was ported here.
 
 The original OpenWrt README is kept as [README.openwrt.md](README.openwrt.md).
 
 ## Where this comes from
 
-- **Base:** upstream [openwrt/openwrt](https://github.com/openwrt/openwrt),
-  OpenWrt 25.12.6 (`r33311`). The earlier 25.12.5 port is kept on the
-  `r7800-nss-25.12` branch.
+- **Base:** upstream [openwrt/openwrt](https://github.com/openwrt/openwrt)
+  master, merged up to early November 2026. The images report
+  `OpenWrt NSS SNAPSHOT`. The 25.12 ports are kept on the
+  `ipq806x-nss-25.12.6`, `dsa-lab` and `r7800-nss-25.12` (25.12.5) branches.
 - **NSS support:** taken from the `r7800-24.10.8` branch of
   [tingalvin/r7800](https://github.com/tingalvin/r7800), which was written for
   OpenWrt 24.10. That branch is the work of Lucas Asvio (asvio), SqTER-PL and
@@ -45,7 +47,8 @@ The R7800 NSS builds go back several generations:
 ACwifidude/openwrt       R7800 NSS for OpenWrt 22.03 / 23.05 (kernel 5.10–5.15)
  └─ asvio/R7800-nss       fork: r7800-23.05-nss … r7800-24.10-nss, r7800-k6.x-nss
      └─ tingalvin/r7800   OpenWrt 24.10.4 … 24.10.8
-         └─ this repo     OpenWrt 25.12.6, Linux 6.12, + TP-Link Archer C2600
+         └─ this repo     OpenWrt 25.12.6 (Linux 6.12), then master (Linux 6.18),
+                          + TP-Link Archer C2600, + DSA
 ```
 
 - [ACwifidude/openwrt](https://github.com/ACwifidude/openwrt): the original R7800
@@ -60,7 +63,8 @@ ACwifidude/openwrt       R7800 NSS for OpenWrt 22.03 / 23.05 (kernel 5.10–5.15
   [ACwifidude/nss-packages](https://github.com/ACwifidude/nss-packages).
 
 The NSS code was not merged from git history. It was carried over commit by
-commit, so this branch descends from OpenWrt 25.12, not from the 24.10 fork.
+commit, so this branch descends from OpenWrt (through the 25.12 port), not
+from the 24.10 fork.
 
 ## What was changed
 
@@ -120,7 +124,9 @@ into `target/linux/ipq806x/dts/`.
   snapshots default. A 25.12 repository would offer kmods built for another
   kernel.
 
-### Port to 25.12 and Linux 6.12
+### Earlier: port to 25.12 and Linux 6.12
+
+This was done on the 25.12 branches and carried over to master with the rest.
 
 - **Kernel:** all 77 NSS/ECM patches of `target/linux/ipq806x/patches-6.12/` were
   ported and refreshed. This covered:
@@ -129,10 +135,10 @@ into `target/linux/ipq806x/dts/`.
   - per-CPU PPP stats;
   - vxlan, bridge, bonding, gre and tun context changes.
 - **GCC 14:** the NSS kernel patches were fixed so they build under `-Werror`.
-- **Switch:** the DTS files use swconfig instead of DSA, as in the 24.10 NSS
-  branch, and the 25.12 pinctrl and PCIe changes are kept. Linksys E8350-v1 has
-  no swconfig DTS, so it stays on DSA without NSS. On this branch the C2600 is
-  back on DSA, with NSS (see below).
+- **Switch:** on `ipq806x-nss-25.12.6` the DTS files use swconfig instead of
+  DSA, as in the 24.10 NSS branch, and the 25.12 pinctrl and PCIe changes are
+  kept. On `dsa-lab` and on this branch the QCA8337 boards use DSA with NSS
+  (see below).
 - **NSS packages:**
   - qca-nss-gmac, -drv, -clients, -ecm, -crypto, -cfi and qca-mcs were ported to
     6.12 (`.remove` returns void, `strscpy`, `no_llseek`, tracepoints, and so on);
@@ -144,8 +150,8 @@ into `target/linux/ipq806x/dts/`.
   - the wifi-script tweaks were moved to the ucode scripts.
 - **LuCI:** the VHT/QAM-256 on 2.4 GHz patch is in
   `VHTNSS.zip`.
-- **Branding:** images are named `openwrt-nss-…` and report
-  `OpenWrt NSS 25.12.6`.
+- **Branding:** images are named `openwrt-nss-…` and report `OpenWrt NSS`
+  (`25.12.6` on the 25.12 branches, `SNAPSHOT` on this one).
 - **25.12.6 rebase:** two kernel patches were adapted to 6.12.112:
   - the bridge Hy-Fi hook now uses `READ_ONCE(dst->dst)`;
   - the bonding LAG acceleration was adapted to the RCU `port->aggregator`
@@ -187,7 +193,7 @@ into `target/linux/ipq806x/dts/`.
 5. **ECM firewall script.** With fw4 there is no `iptables`, so the iptables
    lines now run only when the binary exists.
 
-## DSA with NSS on the C2600 (experimental)
+## DSA with NSS (experimental)
 
 ### Why NSS builds stayed on swconfig
 
@@ -354,7 +360,10 @@ one was added:
    read on a PC. Every fix above came from one of these logs, not from
    guessing. The diagnostic overlay is not part of the repository.
 
-### Results (C2600, same setup as the swconfig tests above)
+### Results (C2600, measured on `dsa-lab`, same setup as the swconfig tests below)
+
+On this branch the C2600 reached the same: 938 Mbit/s up and 843 Mbit/s down
+through NAT, all of it offloaded.
 
 | Test | swconfig + NSS | DSA + NSS |
 |---|---|---|
@@ -379,9 +388,15 @@ For comparison, the same DSA tagger without NSS (vanilla, CPU routing) reached
   - VLAN uppers such as `wan.35` (the code is there);
   - long load runs;
   - reboot cycles;
-  - upgrading from an official 25.12 image.
+  - upgrading from an official OpenWrt image.
 - **No switch register access over Ethernet.** It needs the QCA header, so the
   switch is managed over MDIO only.
+- **Port counters.** The traffic NSS forwards never crosses the DSA user ports
+  on the host, so their counters, and the LuCI overview, showed only a small
+  part of it. The qca8k MIB statistics series of upstream PR
+  [#26141](https://github.com/openwrt/openwrt/pull/26141) (kernel patches
+  770–774) reports the port counters from the switch MIB instead, refreshed
+  every 3 seconds.
 - **Other boards.** Every ipq806x board with a QCA8337 behind gmac1 (port 0,
   RGMII, `eth0`) and gmac2 (port 6, SGMII, `eth1`) is converted the same
   way: the upstream DSA device tree with the `qca-8021q` tagger and the
@@ -392,7 +407,7 @@ For comparison, the same DSA tagger without NSS (vanilla, CPU routing) reached
   | Board | Ports 1–5 | MAC_PWR_SEL | `dsa-lab` (6.12) | `dsa-main` (6.18) |
   |---|---|---|---|---|
   | TP-Link C2600 | lan4–lan1, wan | RGMII1 | tested (author) | tested (author) |
-  | Netgear R7800 | lan4–lan1, wan | RGMII0 | stable (users) | not booted |
+  | Netgear R7800 | lan4–lan1, wan | RGMII0 | stable (users) | stable (users) |
   | Netgear XR450, XR500 | lan4–lan1, wan | RGMII0 | not booted | not booted |
   | TP-Link VR2600v | lan4–lan1, wan | RGMII1 | not booted | not booted |
   | Netgear R7500 v2 | lan1–lan4, wan | RGMII0 | not booted | not booted |
@@ -405,6 +420,43 @@ For comparison, the same DSA tagger without NSS (vanilla, CPU routing) reached
   anyone who flashes one are welcome. The OnHub, AP161, DB149, RT4230W rev6
   and TR4400 v2 use gmac0 or a third GMAC and stay on swconfig, as do the
   boards without a switch.
+
+## Migrating from swconfig (experimental)
+
+The boards in the table above can go straight from a swconfig NSS image (for
+example `ipq806x-nss-25.12.6`, or a 24.10 NSS build) to this branch with
+`sysupgrade`, keeping the settings. On the first boot
+[`05_swconfig-to-dsa`](target/linux/ipq806x/base-files/etc/uci-defaults/05_swconfig-to-dsa)
+converts the network config to the DSA ports and keeps the old one as
+`/etc/config/network.swconfig`:
+
+- `eth1.1` becomes `lan1`–`lan4` and `eth0.2` becomes `wan`.
+- A VLAN tagged on one port only becomes a VLAN upper, e.g. `eth0.35` with
+  `5t` becomes `wan.35`.
+- VLANs on trunk ports (tagged on several ports, or a port in several VLANs)
+  become `br-lan` with VLAN filtering and a `bridge-vlan` section per VLAN,
+  and `eth1.3` becomes `br-lan.3`. NSS accelerates routed traffic through
+  these VLAN devices (see "NSS acceleration" above).
+- Other configs that name a converted device (`minidlna`, `sqm`,
+  `luci_statistics`, ...) are renamed the same way, e.g. `eth0.2` to `wan`
+  and `br-lan` to `br-lan.1`. A device that became several ports (`eth1.1`)
+  cannot be renamed there.
+- The swconfig LED triggers are replaced with the board's DSA netdev LEDs.
+- Setups that cannot be converted (a VLAN ID used on two single ports, VLAN
+  IDs 3072–4095) get the default config.
+
+The result, every rename in the other configs and every case it could not
+handle are written to the system log: `logread -e swconfig-to-dsa`.
+
+**This is experimental.** The conversion was checked with busybox awk on real
+configs, among them a 24.10 NSS R7800 config with five VLANs on trunk ports,
+but a sysupgrade straight from a swconfig image has not been confirmed on
+hardware yet. Take a backup first (`sysupgrade -b`), keep a way to reach the
+router without the wired LAN, and compare the result with
+`/etc/config/network.swconfig`. Reports are welcome.
+
+The image reports compat version 1.0, so `sysupgrade` may need
+`uci set system.@system[0].compat_version=1.0` first.
 
 ## SQM with NSS
 
@@ -457,8 +509,8 @@ ECM-accelerated connections and the SoC temperatures.
 
 The offloaded share of a GMAC is its total traffic minus what passed through
 the host on its switch ports: the GMAC counters are synced by the firmware and
-count every frame, the qca8k port counters only count what went through the
-CPU.
+count every frame, the software counters DSA keeps for each switch port (the
+first lines of `ethtool -S`) only count what went through the CPU.
 
 ## Building
 
@@ -471,7 +523,7 @@ git clone <this repository> openwrt-nss && cd openwrt-nss
 unzip -o VHTNSS.zip            # LuCI tweaks
 
 cp diff-c2600 .config          # TP-Link Archer C2600
-# cp diff .config              # Netgear R7800 (untested on hardware)
+# cp diff .config              # Netgear R7800
 make defconfig
 make -j$(nproc) download
 make -j$(nproc)
@@ -482,29 +534,11 @@ The images are written to `bin/targets/ipq806x/generic/openwrt-nss-ipq806x-gener
 ## Installing on the TP-Link Archer C2600
 
 - **From OpenWrt:** use `sysupgrade` with the `…-squashfs-sysupgrade.bin` image.
-  - This branch uses DSA like the official 25.12 images, with the same port
+  - This branch uses DSA like the official OpenWrt images, with the same port
     names (`lan1`–`lan4`, `wan`). Coming from an official image should keep the
     config, but this has not been tested.
-  - Coming from a swconfig NSS image (the release branch), the config is
-    converted on the first boot and the old one is kept as
-    `/etc/config/network.swconfig`:
-    - `eth1.1` becomes `lan1`–`lan4` and `eth0.2` becomes `wan`;
-    - a VLAN tagged on one port only becomes a VLAN upper, e.g. `eth0.35`
-      with `5t` becomes `wan.35`;
-    - VLANs on trunk ports (tagged on several ports, or a port in several
-      VLANs) become `br-lan` with VLAN filtering and a `bridge-vlan` section
-      per VLAN, and `eth1.3` becomes `br-lan.3`. NSS accelerates routed
-      traffic through these VLAN devices (see "NSS acceleration" above);
-    - other configs that name a converted device (`minidlna`, `sqm`,
-      `luci_statistics`, ...) are renamed the same way, e.g. `eth0.2` to
-      `wan` and `br-lan` to `br-lan.1`. A device that became several ports
-      (`eth1.1`) cannot be renamed there; every rename and every such case
-      is written to the system log (`logread -e swconfig-to-dsa`);
-    - setups that cannot be converted (a VLAN ID used on two single ports,
-      VLAN IDs 3072–4095) get the default config.
-
-    The image reports compat version 1.0, so `sysupgrade` may need
-    `uci set system.@system[0].compat_version=1.0` first.
+  - Coming from a swconfig NSS image, the config is converted on the first
+    boot; see [Migrating from swconfig](#migrating-from-swconfig-experimental).
 - **From the stock firmware, or for recovery:**
   1. Rename `…-squashfs-factory.bin` to `ArcherC2600_1.0_tp_recovery.bin` and
      serve it from a TFTP server at `192.168.0.66`.
@@ -514,6 +548,9 @@ The images are written to `bin/targets/ipq806x/generic/openwrt-nss-ipq806x-gener
   minute.
 
 ## What was tested and measured (TP-Link Archer C2600)
+
+These are the swconfig measurements of the 25.12 release branch, the baseline
+the DSA results above are compared with.
 
 ### Setup
 
@@ -573,7 +610,7 @@ The final image showed:
   bidirectional UDP such as QUIC is accelerated after a few packets. Purely
   one-way streams, such as `iperf3 -u -R`, stay on the CPU.
 
-### 25.12.6 check
+### 25.12.6 check (release branch)
 
 The measurements above were taken on 25.12.5. The 25.12.6 image was then
 installed on the C2600 with `sysupgrade`, keeping settings, and checked again:
@@ -591,7 +628,6 @@ The wired path was not re-measured.
 - The 2.4 GHz radio.
 - Long-term operation over several days.
 - Repeated reboot cycles.
-- The Netgear R7800 on real hardware.
 
 ## License
 
