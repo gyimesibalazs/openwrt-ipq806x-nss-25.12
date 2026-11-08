@@ -393,8 +393,8 @@ ECM-accelerated connections and the SoC temperatures.
 
 The offloaded share of a GMAC is its total traffic minus what passed through
 the host on its switch ports: the GMAC counters are synced by the firmware and
-count every frame, the qca8k port counters only count what went through the
-CPU.
+count every frame, the software counters DSA keeps for each switch port (the
+first lines of `ethtool -S`) only count what went through the CPU.
 
 ## Building
 
