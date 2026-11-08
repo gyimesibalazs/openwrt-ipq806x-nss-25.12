@@ -161,7 +161,7 @@ function renderStatus(d) {
 
 	// ipq806x: the switch ports carry their traffic inside the conduit GMAC,
 	// with no firmware node of their own. Wire totals come from the switch
-	// MIB, the host share from the port netdev, so a port's offloaded
+	// MIB, the host share from its software counters, so a port's offloaded
 	// traffic is the difference between the two.
 	var switchPortRows = (d.dsa_nodes || []).length ? [] : (d.dsa_ports || []).filter(function(p) {
 		return p.conduit != null;

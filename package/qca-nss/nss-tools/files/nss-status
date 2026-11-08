@@ -94,8 +94,6 @@ core_loads=$(awk '/^Core [0-9]+:/ {c=$2; sub(":","",c)}
 	/%/ {gsub("%",""); print c":"$2}' "$DRV/cpu_load_ubi" 2>/dev/null)
 
 # Wire totals of a switch port, from the QCA8337 MIB behind 'ethtool -S'.
-# The port netdev's own counters are software counters on qca8k (it has no
-# get_stats64), so they count only what passed through the host.
 # -> "<tx> <rx> <rx_fcs_errors>"
 switch_mib() {
 	ethtool -S "$1" 2>/dev/null | awk '
@@ -105,14 +103,25 @@ switch_mib() {
 		END {print tx + 0, rx + 0, fcs + 0}'
 }
 
+# What a DSA user port exchanged with the host: the software counters DSA
+# keeps for every user port, the first lines of 'ethtool -S'. The netdev
+# counters may come from the switch MIB instead (qca8k .get_stats64), so they
+# would count the offloaded traffic too.
+# -> "<tx_packets> <rx_packets>"
+host_pkts() {
+	ethtool -S "$1" 2>/dev/null | awk '
+		$1 == "tx_packets:" && tx == "" {tx = $2}
+		$1 == "rx_packets:" && rx == "" {rx = $2}
+		END {print tx + 0, rx + 0}'
+}
+
 # One line per GMAC:
 # ifnum netdev started host_tx host_rx tx_total rx_total crc rx_missed conduit
 #
 # The netdev counters of an NSS GMAC are the MAC statistics the firmware syncs
 # up, so they count every frame on the wire. On a DSA conduit, what the host
 # exchanged with the firmware is what passed through the user ports: their
-# counters are software counters (see switch_mib), so their sum is the host
-# side of the port. What the firmware forwarded on its own - the offloaded
+# software counters (see host_pkts) add up to the host side of the port. What the firmware forwarded on its own - the offloaded
 # share - is the difference. A GMAC that is not a conduit has no such split
 # and is counted as all host, so it never reads as offloaded by mistake.
 ports=$(for e in $gmacs; do
@@ -129,8 +138,9 @@ ports=$(for e in $gmacs; do
 		htx=0
 		hrx=0
 		for p in $(user_ports "$nd"); do
-			htx=$((htx + $(nstat "$p" tx_packets)))
-			hrx=$((hrx + $(nstat "$p" rx_packets)))
+			set -- $(host_pkts "$p")
+			htx=$((htx + $1))
+			hrx=$((hrx + $2))
 		done
 	fi
 	crc=$(nstat "$nd" rx_crc_errors)
@@ -153,7 +163,7 @@ dsa_ports=$(for e in $gmacs; do
 	for p in $(user_ports "$nd"); do
 		echo "$p $(cat "$NET/$p/carrier" 2>/dev/null || echo 0)" \
 		     "$(switch_mib "$p" | awk '{print $1, $2}')" \
-		     "$(nstat "$p" tx_packets) $(nstat "$p" rx_packets)" \
+		     "$(host_pkts "$p")" \
 		     "$(switch_mib "$p" | awk '{print $3}') $nd"
 	done
 done)
