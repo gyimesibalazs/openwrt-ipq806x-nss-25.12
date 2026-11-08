@@ -61,7 +61,7 @@ esac
 grep -q "^config switch_vlan" "$CONF" || exit 0
 
 convert() {
-	awk -v ports="$ports" -v cpus="$cpus" '
+	awk -v ports="$ports" -v cpus="$cpus" -v mapfile="$MAP" '
 	function q(s) { gsub(/^'\''|'\''$/, "", s); return s }
 
 	# the value of an option or list line, without quotes
@@ -266,9 +266,19 @@ convert() {
 	$1 == "option" && $2 == "name" { sname = val($0) }
 	{ line[++nl] = $0 }
 
+	# old device -> new device(s), for the other configs
+	function maps(    x) {
+		if (mapfile == "") return
+		for (x in map) print x "\t" map[x] > mapfile
+		for (x in cmap) print x "\t" VB "." cmap[x] > mapfile
+		for (x in redirect) print x "\t" redirect[x] > mapfile
+		if (VBVID != "") print VB "\t" VB "." VBVID > mapfile
+	}
+
 	END {
 		if (failed) exit 2
 		flush()
+		maps()
 		if (!ntrunk) exit 0
 
 		if (newvb) {
@@ -336,15 +346,71 @@ migrate_leds() {
 
 [ -n "$BOARD" ] || migrate_leds
 
+# The other configs may name the old devices (minidlna, sqm, statistics,
+# ...): rename them as in the network config. A device that became
+# several ports cannot be renamed, only reported.
+migrate_others() {
+	local file
+
+	for file in "${CONF%/*}"/*; do
+		[ -f "$file" ] && [ "$file" != "$CONF" ] || continue
+		case "${file##*/}" in
+		network*|*-opkg) continue ;;
+		esac
+
+		awk -v name="${file##*/}" '
+		NR == FNR { split($0, m, "\t"); new[m[1]] = m[2]; next }
+
+		($1 == "option" || $1 == "list") && NF >= 3 {
+			line = $0
+			q = line; sub(/^[ 	]*[a-z]+[ 	]+[^ 	]+[ 	]+/, "", q)
+			head = substr(line, 1, length(line) - length(q))
+			quote = substr(q, 1, 1)
+			if (quote == "\047" || quote == "\"") v = substr(q, 2, length(q) - 2)
+			else { quote = ""; v = q }
+
+			n = split(v, t, " "); out = ""; changed = 0
+			for (i = 1; i <= n; i++) {
+				if (t[i] in new) {
+					if (index(new[t[i]], " ")) {
+						print name ": " $2 " " t[i] " became " new[t[i]] ", not renamed" > "/dev/stderr"
+					} else {
+						t[i] = new[t[i]]; changed = 1
+					}
+				}
+				out = out (i > 1 ? " " : "") t[i]
+			}
+			if (changed) {
+				print name ": " $2 " " v " -> " out > "/dev/stderr"
+				print head quote out quote
+				touched = 1
+				next
+			}
+		}
+		{ print }
+		END { exit !touched }
+		' "$MAP" "$file" > "$file.dsa" 2>"$MAP.log" && mv "$file.dsa" "$file" || rm -f "$file.dsa"
+
+		while read -r line; do
+			logger -t swconfig-to-dsa "$line"
+		done < "$MAP.log"
+	done
+	rm -f "$MAP.log"
+}
+
 cp "$CONF" "$CONF.swconfig"
+MAP="/tmp/swconfig-to-dsa.map"
+rm -f "$MAP"
 
 if convert > "$CONF.dsa"; then
 	mv "$CONF.dsa" "$CONF"
 	logger -t swconfig-to-dsa "network config converted to DSA ports, old config in $CONF.swconfig"
+	[ -s "$MAP" ] && migrate_others
 else
 	rm -f "$CONF.dsa" "$CONF"
 	/bin/config_generate
 	logger -t swconfig-to-dsa "switch setup cannot be converted, defaults generated, old config in $CONF.swconfig"
 fi
+rm -f "$MAP"
 
 exit 0

@@ -1,0 +1,55 @@
+From: Gyimesi Balázs <gyimesi.balazs@gmail.com>
+Subject: bridge: add br_port_dev_get_vid()
+
+br_port_dev_get() looks a MAC address up in VLAN 0 only. A VLAN-aware
+bridge keeps its fdb per VLAN, so an offload engine cannot find the
+port of a host in a bridge VLAN. Add br_port_dev_get_vid() for that.
+
+Signed-off-by: Gyimesi Balázs <gyimesi.balazs@gmail.com>
+---
+--- a/include/linux/if_bridge.h
++++ b/include/linux/if_bridge.h
+@@ -75,6 +75,9 @@ extern struct net_device *br_port_dev_get(struct net_device *dev,
+ 					  unsigned char *addr,
+ 					  struct sk_buff *skb,
+ 					  unsigned int cookie);
++extern struct net_device *br_port_dev_get_vid(struct net_device *dev,
++					      const unsigned char *addr,
++					      u16 vid);
+ extern void br_refresh_fdb_entry(struct net_device *dev, const char *addr);
+ extern void br_fdb_entry_refresh(struct net_device *dev, const char *addr, __u16 vid);
+ extern void br_dev_update_stats(struct net_device *dev,
+--- a/net/bridge/br_if.c
++++ b/net/bridge/br_if.c
+@@ -847,6 +847,31 @@ out:
+ }
+ EXPORT_SYMBOL_GPL(br_port_dev_get);
+ 
++/* br_port_dev_get_vid()
++ *      The port of a VLAN-aware bridge behind which addr is reachable in
++ *      VLAN vid, returning a reference to its net device, or NULL.
++ */
++struct net_device *br_port_dev_get_vid(struct net_device *dev,
++				       const unsigned char *addr, u16 vid)
++{
++	struct net_bridge_fdb_entry *fdbe;
++	struct net_device *netdev = NULL;
++
++	if (!(dev->priv_flags & IFF_EBRIDGE))
++		return NULL;
++
++	rcu_read_lock();
++	fdbe = br_fdb_find_rcu(netdev_priv(dev), addr, vid);
++	if (fdbe && fdbe->dst) {
++		netdev = fdbe->dst->dev;
++		dev_hold(netdev);
++	}
++	rcu_read_unlock();
++
++	return netdev;
++}
++EXPORT_SYMBOL_GPL(br_port_dev_get_vid);
++
+ /* Update bridge statistics for bridge packets processed by offload engines */
+ void br_dev_update_stats(struct net_device *dev,
+ 			 struct rtnl_link_stats64 *nlstats)

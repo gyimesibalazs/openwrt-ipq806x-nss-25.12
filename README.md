@@ -233,9 +233,19 @@ what it saw under swconfig: plain 802.1Q-tagged frames on the GMACs.
   ports. Ports in one VLAN-aware bridge can share IDs.
 - **Up to 7 offloaded bridges.** The bridge number is encoded in 3 bits of the
   bridge VLAN.
-- **NSS acceleration.** VLAN uppers of standalone ports are accelerated. Traffic
-  through ports of a VLAN-aware bridge is not, because there the VLAN depends
-  on the flow. Neither case has been tested on hardware yet.
+- **NSS acceleration.** VLAN uppers of standalone ports, such as `wan.35`,
+  are accelerated. In a VLAN-aware bridge, routed traffic through a VLAN
+  device of the bridge, such as `br-lan.3`, is accelerated too: such a frame
+  crosses the conduit with just that VLAN's tag, so the NSS rule carries that
+  VLAN on the conduit ([ECM patch 405](package/qca-nss/qca-nss-ecm/patches/405-dsa-tag_8021q-vlan-aware-bridge.patch),
+  with `br_port_dev_get_vid()` from kernel patch 990-1001 to find the port in
+  the bridge's per-VLAN fdb). Tested on the C2600 (`dsa-main`, Linux 6.18)
+  with `lan1` untagged in VLAN 1 and tagged in VLAN 3: 938/848 Mbit/s up/down
+  on `br-lan.3`, router CPU idle, steady for 6 minutes past the 5-minute fdb
+  ageing. Bridged traffic
+  between a switch port and another bridge port (e.g. WiFi) in the same VLAN,
+  and an address directly on a VLAN-aware bridge, are not accelerated.
+  `wan.35` has not been tested on hardware yet.
 
 ### What it took on the hardware
 
@@ -366,7 +376,7 @@ For comparison, the same DSA tagger without NSS (vanilla, CPU routing) reached
   "Couldn't decode source port" warning. It is not known yet whether swconfig
   had the same thing silently.
 - **Not tested yet:**
-  - VLAN-aware bridges and VLAN uppers such as `wan.35` (the code is there);
+  - VLAN uppers such as `wan.35` (the code is there);
   - long load runs;
   - reboot cycles;
   - upgrading from an official 25.12 image.
@@ -483,9 +493,13 @@ The images are written to `bin/targets/ipq806x/generic/openwrt-nss-ipq806x-gener
       with `5t` becomes `wan.35`;
     - VLANs on trunk ports (tagged on several ports, or a port in several
       VLANs) become `br-lan` with VLAN filtering and a `bridge-vlan` section
-      per VLAN, and `eth1.3` becomes `br-lan.3`. NSS does not accelerate
-      traffic through a VLAN-aware bridge, and this has not been tested on
-      hardware yet;
+      per VLAN, and `eth1.3` becomes `br-lan.3`. NSS accelerates routed
+      traffic through these VLAN devices (see "NSS acceleration" above);
+    - other configs that name a converted device (`minidlna`, `sqm`,
+      `luci_statistics`, ...) are renamed the same way, e.g. `eth0.2` to
+      `wan` and `br-lan` to `br-lan.1`. A device that became several ports
+      (`eth1.1`) cannot be renamed there; every rename and every such case
+      is written to the system log (`logread -e swconfig-to-dsa`);
     - setups that cannot be converted (a VLAN ID used on two single ports,
       VLAN IDs 3072–4095) get the default config.
 

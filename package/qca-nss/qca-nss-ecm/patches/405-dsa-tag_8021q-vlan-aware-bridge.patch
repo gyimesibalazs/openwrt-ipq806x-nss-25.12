@@ -1,0 +1,164 @@
+From: Gyimesi Balázs <gyimesi.balazs@gmail.com>
+Subject: ecm: accelerate VLANs of a VLAN-aware bridge on tag_8021q DSA ports
+
+With trunk ports the switch VLANs become a VLAN-aware bridge with a
+VLAN device per network (br-lan.3). With the qca-8021q tagger the
+frames of such a bridge VLAN cross the conduit with just that VLAN's
+tag, both ways, and the switch picks the port from its own fdb.
+
+So for a routed flow through such a VLAN device, take the bridge port
+from the bridge fdb of that VLAN, record it as a plain ethernet port
+and continue to its conduit: the NSS rule then carries the VLAN of the
+VLAN device on the conduit, as for an ethX.Y device. The fdb entry is
+refreshed in that VLAN.
+
+Bridged flows and a VLAN-aware bridge without a VLAN device are still
+not accelerated.
+
+Signed-off-by: Gyimesi Balázs <gyimesi.balazs@gmail.com>
+---
+--- a/ecm_interface.c
++++ b/ecm_interface.c
+@@ -3149,11 +3149,10 @@ struct ecm_db_iface_instance *ecm_interface_establish_and_ref(struct ecm_front_e
+ #ifdef ECM_INTERFACE_VLAN_ENABLE
+ 		/*
+ 		 * VLAN?
++		 * A DSA port under a VLAN-aware bridge is a plain ethernet port here:
++		 * the VLAN comes from the VLAN device on the bridge, see
++		 * ecm_interface_dsa_8021q_bridge_vlan()
+ 		 */
+-		if (ecm_interface_dsa_8021q_vid(dev) < 0) {
+-			DEBUG_WARN("%px: DSA port %s is under a VLAN-aware bridge, not supported\n", feci, dev_name);
+-			return NULL;
+-		}
+ 
+ 		if (ecm_interface_dsa_8021q_vid(dev) > 0) {
+ 			/*
+@@ -5265,6 +5264,19 @@ int32_t ecm_interface_heirarchy_construct(struct ecm_front_end_connection_instan
+ 				 */
+ 
+ #ifdef ECM_INTERFACE_VLAN_ENABLE
++				/*
++				 * DSA port under a VLAN-aware bridge, reached through a VLAN
++				 * device of that bridge: the frames reach the conduit with
++				 * the tag of that VLAN device
++				 */
++				if (is_routed && ecm_interface_dsa_8021q_bridge_vlan(dest_dev, top_dev)) {
++					next_dev = ecm_interface_dsa_8021q_conduit(dest_dev);
++					dev_hold(next_dev);
++					DEBUG_TRACE("%px: Net device: %px is a DSA port in VLAN %u of a VLAN-aware bridge, conduit: %px (%s)\n",
++							feci, dest_dev, vlan_dev_vlan_id(top_dev), next_dev, next_dev->name);
++					break;
++				}
++
+ 				/*
+ 				 * VLAN?
+ 				 */
+@@ -5387,6 +5399,17 @@ int32_t ecm_interface_heirarchy_construct(struct ecm_front_end_connection_instan
+ 					next_dev = br_port_dev_get(dest_dev,
+ 						mac_addr, skb, serial);
+ 
++#ifdef ECM_INTERFACE_VLAN_ENABLE
++					/*
++					 * A VLAN-aware bridge keeps its fdb per VLAN
++					 */
++					if (!next_dev && is_routed && top_dev && is_vlan_dev(top_dev) &&
++					    vlan_dev_next_dev(top_dev) == dest_dev && br_vlan_enabled(dest_dev)) {
++						next_dev = br_port_dev_get_vid(dest_dev, mac_addr,
++								vlan_dev_vlan_id(top_dev));
++					}
++#endif
++
+ 					if (!next_dev) {
+ 						DEBUG_WARN("%px: Unable to obtain output port for: %pM\n", feci, mac_addr);
+ 						goto done;
+@@ -6693,6 +6716,37 @@ static void ecm_interface_ovpn_stats_update(struct net_device *dev, ip_addr_t fr
+ }
+ #endif
+ 
++/*
++ * ecm_interface_list_bridge_vid()
++ *	The VLAN of a DSA port under a VLAN-aware bridge in this interface list:
++ *	the VLAN device of that bridge in the list carries it. 0 otherwise.
++ */
++static u16 ecm_interface_list_bridge_vid(int iface_list_first, struct ecm_db_iface_instance *iface_list[],
++					struct net_device *port)
++{
++	int list_index;
++	u16 vid = 0;
++
++	if (ecm_interface_dsa_8021q_vid(port) >= 0)
++		return 0;
++
++	for (list_index = iface_list_first; !vid && (list_index < ECM_DB_IFACE_HEIRARCHY_MAX); list_index++) {
++		struct net_device *dev;
++
++		if (ecm_db_iface_type_get(iface_list[list_index]) != ECM_DB_IFACE_TYPE_VLAN)
++			continue;
++
++		dev = dev_get_by_index(&init_net, ecm_db_iface_interface_identifier_get(iface_list[list_index]));
++		if (!dev)
++			continue;
++
++		vid = ecm_interface_dsa_8021q_bridge_vlan(port, dev);
++		dev_put(dev);
++	}
++
++	return vid;
++}
++
+ /*
+  * ecm_interface_list_stats_update()
+  *	Given an interface list, walk the interfaces and update the stats for certain types.
+@@ -6754,7 +6808,8 @@ static void ecm_interface_list_stats_update(int iface_list_first, struct ecm_db_
+ 					/*
+ 					 * Update the existing fdb entry's timestamp only.
+ 					 */
+-					br_fdb_entry_refresh(dev, mac_addr, 0);
++					br_fdb_entry_refresh(dev, mac_addr,
++						ecm_interface_list_bridge_vid(iface_list_first, iface_list, dev));
+ 				}
+ 
+ 				DEBUG_TRACE("Update bridge fdb entry for mac: %pM\n", mac_addr);
+--- a/ecm_interface.h
++++ b/ecm_interface.h
+@@ -101,6 +101,39 @@ static inline struct net_device *ecm_interface_dsa_8021q_conduit(struct net_devi
+ 	return dp ? dsa_port_to_conduit(dp) : NULL;
+ }
+ 
++/*
++ * ecm_interface_dsa_8021q_bridge_vlan()
++ *	A qca-8021q DSA user port under a VLAN-aware bridge, reached through
++ *	vlan_dev, an 802.1Q VLAN device directly on that bridge (br-lan.3): the
++ *	frames of that VLAN cross the conduit with just this VLAN tag, so the port
++ *	is a plain port of the conduit and vlan_dev carries the tag. Returns the
++ *	VLAN, or 0 for any other case.
++ */
++static inline u16 ecm_interface_dsa_8021q_bridge_vlan(struct net_device *dev,
++						      struct net_device *vlan_dev)
++{
++#if IS_ENABLED(CONFIG_NET_DSA_TAG_QCA_8021Q)
++	struct dsa_port *dp = ecm_interface_dsa_8021q_port(dev);
++	struct net_device *br;
++	u16 proto;
++
++	if (!dp || !vlan_dev || !is_vlan_dev(vlan_dev))
++		return 0;
++
++	br = dsa_port_bridge_dev_get(dp);
++	if (!br || !br_vlan_enabled(br) || vlan_dev_next_dev(vlan_dev) != br)
++		return 0;
++
++	if (vlan_dev_vlan_proto(vlan_dev) != htons(ETH_P_8021Q) ||
++	    br_vlan_get_proto(br, &proto) || proto != ETH_P_8021Q)
++		return 0;
++
++	return vlan_dev_vlan_id(vlan_dev);
++#else
++	return 0;
++#endif
++}
++
+ /*
+  * ecm_interface_vlan_egress_qos_mask()
+  *	VLAN priority bits for a VLAN device; none for a DSA user port
