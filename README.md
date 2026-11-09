@@ -442,6 +442,10 @@ converts the network config to the DSA ports and keeps the old one as
   and `br-lan` to `br-lan.1`. A device that became several ports (`eth1.1`)
   cannot be renamed there.
 - The swconfig LED triggers are replaced with the board's DSA netdev LEDs.
+- Without a stored DHCPv6 DUID (`network.globals.dhcp_default_duid`, often
+  missing from older configs), the DUID odhcp6c used, derived from the WAN
+  MAC, is stored, so the ISP keeps the same IPv6 prefix. Behind PPPoE that
+  is a best guess.
 - Setups that cannot be converted (a VLAN ID used on two single ports, VLAN
   IDs 3072–4095) get the default config.
 

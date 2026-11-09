@@ -398,6 +398,57 @@ migrate_others() {
 	rm -f "$MAP.log"
 }
 
+# Without network.globals.dhcp_default_duid odhcp6c used a DUID-LL of the
+# MAC of its interface; 14_network-generate-duid would now pick a new
+# DUID-UUID, and the ISP may hand out another IPv6 prefix. Keep the old
+# DUID: the DSA port has the MAC the switch VLAN device had. Behind PPPoE
+# odhcp6c took the MAC of some other interface, the WAN MAC is a guess.
+keep_duid() {
+	local dir="${CONF%/*}" cfg="${CONF##*/}" iface dev mac sec
+
+	case "$(uci -q -c "$dir" get "$cfg.globals.dhcp_default_duid")" in
+	""|auto) ;;
+	*) return 0 ;;
+	esac
+
+	iface="$(uci -q -c "$dir" show "$cfg" |
+		sed -n "s/^$cfg\.\([^.]*\)\.proto='dhcpv6'$/\1/p" | head -n 1)"
+	[ -n "$iface" ] || return 0
+
+	mac="$(uci -q -c "$dir" get "$cfg.$iface.macaddr")"
+	dev="$(uci -q -c "$dir" get "$cfg.$iface.device" || uci -q -c "$dir" get "$cfg.$iface.ifname")"
+	case "$dev" in
+	@*)
+		iface="${dev#@}"
+		[ -n "$mac" ] || mac="$(uci -q -c "$dir" get "$cfg.$iface.macaddr")"
+		dev="$(uci -q -c "$dir" get "$cfg.$iface.device" || uci -q -c "$dir" get "$cfg.$iface.ifname")"
+		;;
+	esac
+	[ -n "$dev" ] || return 0
+
+	if [ -z "$mac" ]; then
+		for sec in $(uci -q -c "$dir" show "$cfg" |
+			sed -n "s/^$cfg\.\([^.]*\)\.name='$dev'$/\1/p"); do
+			[ "$(uci -q -c "$dir" get "$cfg.$sec")" = "device" ] &&
+				mac="$(uci -q -c "$dir" get "$cfg.$sec.macaddr")" && break
+		done
+	fi
+	[ -n "$mac" ] || mac="$(cat "/sys/class/net/$dev/address" 2>/dev/null)"
+
+	mac="$(echo "$mac" | tr -d ':' | tr 'A-F' 'a-f')"
+	case "$mac" in
+	000000000000|*[!0-9a-f]*) return 0 ;;
+	esac
+	[ ${#mac} -eq 12 ] || return 0
+
+	uci -q -c "$dir" batch <<-EOF
+		set $cfg.globals=globals
+		set $cfg.globals.dhcp_default_duid=00030001$mac
+		commit $cfg
+	EOF
+	logger -t swconfig-to-dsa "DHCPv6 DUID kept: 00030001$mac (MAC of $dev)"
+}
+
 cp "$CONF" "$CONF.swconfig"
 MAP="/tmp/swconfig-to-dsa.map"
 rm -f "$MAP"
@@ -406,6 +457,7 @@ if convert > "$CONF.dsa"; then
 	mv "$CONF.dsa" "$CONF"
 	logger -t swconfig-to-dsa "network config converted to DSA ports, old config in $CONF.swconfig"
 	[ -s "$MAP" ] && migrate_others
+	keep_duid
 else
 	rm -f "$CONF.dsa" "$CONF"
 	/bin/config_generate
