@@ -1,0 +1,55 @@
+From: BrotherDen <24860910+BrotherDen@users.noreply.github.com>
+Subject: [PATCH] net: bridge: keep the TX forwarding offload mark across br_netfilter
+
+On a VLAN-unaware bridge with switchdev TX forwarding offload,
+__br_forward() sets BR_INPUT_SKB_CB(skb)->tx_fwd_offload before the
+NF_BR_FORWARD hook. When bridged IPv4 or IPv6 goes through the IP
+netfilter path, br_validate_ipv4() / br_validate_ipv6() clear IPCB or
+IP6CB, which share skb->cb with the bridge control block. The bit is
+lost, br_dev_queue_push_xmit() leaves skb->offload_fwd_mark unset, and
+a tag_8021q based tagger such as qca-8021q sends the frame with the
+port's standalone VID instead of the bridge VID. The switch then drops
+or misdirects it.
+
+Save the bit in the already unshared nf_bridge_info before IP netfilter
+reuses skb->cb, and restore it in br_nf_forward_finish() before bridge
+forwarding resumes.
+
+Seen on a Netgear R7800 (QCA8337, qca-8021q) with
+bridge-nf-call-iptables=1: Wi-Fi to wired unicast replies left with VID
+0xc03 instead of 0xc20 and never arrived.
+
+Known gap: when br_nf_dev_queue_xmit() has to fragment, it calls
+br_validate_ipv4() again and the fragments still lose the mark.
+---
+--- a/include/linux/skbuff.h
++++ b/include/linux/skbuff.h
+@@ -295,6 +295,7 @@ struct nf_bridge_info {
+ 	u8			in_prerouting:1;
+ 	u8			bridged_dnat:1;
+ 	u8			sabotage_in_done:1;
++	u8			tx_fwd_offload:1;
+ 	__u16			frag_max_size;
+ 	int			physinif;
+ 
+--- a/net/bridge/br_netfilter_hooks.c
++++ b/net/bridge/br_netfilter_hooks.c
+@@ -695,6 +695,8 @@ static int br_nf_forward_finish(struct n
+ 			nf_bridge->pkt_otherhost = false;
+ 		}
+ 		nf_bridge_update_protocol(skb);
++		BR_INPUT_SKB_CB(skb)->tx_fwd_offload =
++			nf_bridge->tx_fwd_offload;
+ 	} else {
+ 		in = *((struct net_device **)(skb->cb));
+ 	}
+@@ -737,6 +739,9 @@ static unsigned int br_nf_forward_ip(str
+ 		nf_bridge->pkt_otherhost = true;
+ 	}
+ 
++	/* Preserve switchdev metadata while IPCB/IP6CB use skb->cb. */
++	nf_bridge->tx_fwd_offload = BR_INPUT_SKB_CB(skb)->tx_fwd_offload;
++
+ 	if (pf == NFPROTO_IPV4) {
+ 		if (br_validate_ipv4(state->net, skb))
+ 			return NF_DROP_REASON(skb, SKB_DROP_REASON_IP_INHDR, 0);
